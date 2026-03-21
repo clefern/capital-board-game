@@ -2,7 +2,7 @@
 // GameState - Estado Central do Jogo
 // ========================================
 
-import { STARTING_CARDS, PLAYER_COLOR_ORDER, BUSINESS_TYPES } from '../config/constants.js';
+import { STARTING_CARDS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, COLOR_SLOT } from '../config/constants.js';
 import { SPACES, TOTAL_SPACES, NEST_POSITIONS } from '../config/board-layout.js';
 import { Player } from './Player.js';
 import { Business } from './Business.js';
@@ -69,16 +69,20 @@ export class GameState {
     return all.length > 0 ? all[0] : null;
   }
 
-  // Slots livres em uma casa
-  getFreeSlots(spaceId) {
-    const occupied = this.getBusinessesAtSpace(spaceId).map(b => b.business.slot);
-    return [0, 1, 2, 3].filter(s => !occupied.includes(s));
-  }
-
-  // Construir negócio em um slot específico
-  buildBusiness(player, type, spaceId, slot = 0) {
+  // Verifica se o jogador pode construir nesta casa (seu quadrante está livre)
+  canPlayerBuildAt(player, spaceId) {
     const space = SPACES[spaceId];
     if (space.type !== 'property') return false;
+    const slot = COLOR_SLOT[player.color];
+    return !this.getBusinessAtSlot(spaceId, slot);
+  }
+
+  // Construir negócio no quadrante fixo do jogador
+  buildBusiness(player, type, spaceId) {
+    const space = SPACES[spaceId];
+    if (space.type !== 'property') return false;
+
+    const slot = COLOR_SLOT[player.color];
     if (this.getBusinessAtSlot(spaceId, slot)) return false;
 
     const config = BUSINESS_TYPES[type];

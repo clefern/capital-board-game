@@ -183,8 +183,7 @@ class CapitalGame {
     return new Promise(resolve => {
       const panel = document.getElementById('action-panel');
       const space = SPACES[player.position];
-      const freeSlots = space.type === 'property' ? gs.getFreeSlots(player.position) : [];
-      const canBuild = freeSlots.length > 0;
+      const canBuild = gs.canPlayerBuildAt(player, player.position);
 
       panel.innerHTML = `
         <div class="action-menu">
@@ -414,20 +413,10 @@ class CapitalGame {
   showBuildMenu(player) {
     return new Promise(resolve => {
       const panel = document.getElementById('action-panel');
-      const freeSlots = this.gameState.getFreeSlots(player.position);
-      const slotLabels = ['↖ Sup-Esq', '↗ Sup-Dir', '↙ Inf-Esq', '↘ Inf-Dir'];
 
       panel.innerHTML = `
         <div class="action-menu">
           <div class="action-title">Construir (Casa ${player.position})</div>
-          <div class="build-slots">
-            <div class="slot-label">Terreno:</div>
-            <div class="slot-buttons">
-              ${freeSlots.map((s, i) =>
-                `<button class="btn btn-small slot-btn ${i === 0 ? 'selected' : ''}" data-slot="${s}">${slotLabels[s]}</button>`
-              ).join('')}
-            </div>
-          </div>
           <div class="build-options">
             ${BUSINESS_ORDER.map(type => {
               const config = BUSINESS_TYPES[type];
@@ -444,21 +433,10 @@ class CapitalGame {
         </div>
       `;
 
-      let selectedSlot = freeSlots[0];
-
-      // Seleção de slot
-      panel.querySelectorAll('.slot-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          panel.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selectedSlot = parseInt(btn.dataset.slot);
-        });
-      });
-
       panel.querySelectorAll('.build-btn:not(.disabled)').forEach(btn => {
         btn.addEventListener('click', () => {
           panel.innerHTML = '';
-          resolve({ type: 'build', businessType: btn.dataset.type, slot: selectedSlot });
+          resolve({ type: 'build', businessType: btn.dataset.type });
         });
       });
 

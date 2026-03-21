@@ -190,7 +190,7 @@ export class TurnManager {
         await this.executeCard(player, action.cardIndex, action.target);
         break;
       case 'build':
-        this.gs.buildBusiness(player, action.businessType, player.position, action.slot ?? 0);
+        this.gs.buildBusiness(player, action.businessType, player.position);
         soundManager.playBuild();
         break;
       case 'trade':

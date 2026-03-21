@@ -61,6 +61,14 @@ export const PLAYER_COLORS = {
 
 export const PLAYER_COLOR_ORDER = ['yellow', 'red', 'blue', 'green'];
 
+// Quadrante fixo de cada cor (slot 0-3 dentro da casa)
+// ┌──┬──┐
+// │0 │1 │  0=yellow, 1=red
+// ├──┼──┤
+// │2 │3 │  2=blue,   3=green
+// └──┴──┘
+export const COLOR_SLOT = { yellow: 0, red: 1, blue: 2, green: 3 };
+
 // Vitória
 export const VICTORY_CONDITIONS = {
   mais_rico:   { patrimonyPercent: 0.40, minLaps: 2 },
