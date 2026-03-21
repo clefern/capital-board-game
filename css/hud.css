@@ -1,0 +1,93 @@
+/* ========================================
+   HUD - Sidebar Esquerda (Jogadores)
+   ======================================== */
+
+.hud-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  height: 100%;
+}
+
+.player-panel {
+  padding: 10px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border-left: 3px solid;
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.player-panel.active {
+  background: rgba(242, 201, 76, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.25);
+}
+
+.player-panel.bankrupt { opacity: 0.4; }
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.bankrupt-badge {
+  background: var(--accent-red);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  margin-left: auto;
+}
+
+.player-info { display: flex; flex-direction: column; gap: 2px; }
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.money { font-weight: 700; color: var(--accent-green); }
+.money.negative { color: var(--accent-red); }
+
+.player-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.effect-badge {
+  background: rgba(255,255,255,0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.business-list {
+  margin-top: 5px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 4px;
+}
+
+.business-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.business-item small { color: var(--text-secondary); }
+
+.biz-income {
+  margin-left: auto;
+  color: var(--accent-green);
+  font-weight: 600;
+  font-size: 12px;
+}
