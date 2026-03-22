@@ -182,7 +182,7 @@ class CapitalGame {
     app.innerHTML = `
       <div class="game-layout">
         <button class="mobile-toggle mobile-toggle-left" id="toggle-hud">👥</button>
-        <button class="mobile-toggle mobile-toggle-right" id="toggle-actions">🎮</button>
+        <button class="mobile-toggle mobile-toggle-right" id="toggle-actions">🃏</button>
         <div class="drawer-overlay" id="drawer-overlay"></div>
 
         <aside class="sidebar sidebar-left" id="hud-container"></aside>
@@ -199,10 +199,10 @@ class CapitalGame {
           </div>
           <div id="dice-container" class="dice-container"></div>
           <div id="bifurcation-ui" class="bifurcation-ui"></div>
+          <div id="center-actions" class="center-actions"></div>
         </main>
 
         <aside class="sidebar sidebar-right">
-          <div id="action-panel" class="action-panel"></div>
           <div id="card-container" class="card-container"></div>
           <div id="log-container" class="log-container">
             <div class="log-header">Registro</div>
@@ -274,35 +274,31 @@ class CapitalGame {
     };
   }
 
-  // === MENU DE AÇÃO (sidebar direita) ===
+  // === MENU DE AÇÃO (centro do board) ===
   showActionMenu(player, gs) {
-    // Em mobile, abrir o drawer de ações automaticamente
-    this.openActionsDrawer();
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
-      const space = SPACES[player.position];
+      const panel = document.getElementById('center-actions');
+      const colors = PLAYER_COLORS[player.color];
       const canBuild = gs.canPlayerBuildAt(player, player.position);
 
       panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Ação de ${player.name}</div>
-          <div class="action-buttons">
-            <button class="btn action-btn" id="action-card" ${player.cards.length === 0 ? 'disabled' : ''}>
-              🃏 Jogar Carta
+        <div class="center-action-menu">
+          <div class="center-action-title" style="color:${colors.main}">Ação de ${player.name}</div>
+          <div class="center-action-grid">
+            <button class="btn center-act-btn" id="action-card" ${player.cards.length === 0 ? 'disabled' : ''}>
+              🃏 Carta
             </button>
-            <button class="btn action-btn" id="action-build" ${!canBuild ? 'disabled' : ''}>
+            <button class="btn center-act-btn" id="action-build" ${!canBuild ? 'disabled' : ''}>
               🏗️ Construir
             </button>
-            <button class="btn action-btn" id="action-trade" ${player.cards.length === 0 ? 'disabled' : ''}>
-              🤝 Trocar Cartas
+            <button class="btn center-act-btn" id="action-trade" ${player.cards.length === 0 ? 'disabled' : ''}>
+              🤝 Trocar
             </button>
-            <button class="btn action-btn" id="action-buy-card" ${!player.canAfford(200) || gs.deck.remainingCards === 0 ? 'disabled' : ''}>
-              🛒 Comprar Carta ($200)
-            </button>
-            <button class="btn action-btn action-pass" id="action-pass">
-              ⏭️ Passar
+            <button class="btn center-act-btn" id="action-buy-card" ${!player.canAfford(200) || gs.deck.remainingCards === 0 ? 'disabled' : ''}>
+              🛒 Comprar
             </button>
           </div>
+          <button class="btn center-act-btn center-act-pass" id="action-pass">⏭️ Passar</button>
         </div>
       `;
 
@@ -356,16 +352,17 @@ class CapitalGame {
 
   showCardSelection(player) {
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
-      panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Selecione uma carta</div>
-          <div class="card-selection"></div>
-          <button class="btn btn-secondary btn-small" id="card-back">← Voltar</button>
-        </div>
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <h2>Selecione uma carta</h2>
+        <div class="card-selection"></div>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-secondary btn-small" id="card-back">← Voltar</button></div>
       `;
 
-      const container = panel.querySelector('.card-selection');
+      const container = modal.querySelector('.card-selection');
       player.cards.forEach((card, index) => {
         const canAfford = player.canAfford(card.cost);
         const el = document.createElement('div');
@@ -380,7 +377,7 @@ class CapitalGame {
         `;
         if (canAfford) {
           el.addEventListener('click', () => {
-            panel.innerHTML = '';
+            overlay.remove();
             if (['opponent', 'opponent_business'].includes(card.targetType)) {
               this.showTargetSelection(player, index, card).then(resolve);
             } else if (card.targetType === 'board') {
@@ -395,36 +392,38 @@ class CapitalGame {
         container.appendChild(el);
       });
 
-      panel.querySelector('#card-back').addEventListener('click', () => { panel.innerHTML = ''; resolve(null); });
+      modal.querySelector('#card-back').addEventListener('click', () => { overlay.remove(); resolve(null); });
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
     });
   }
 
   showTargetSelection(player, cardIndex, card) {
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
       const opponents = this.gameState.activePlayers.filter(p => p.id !== player.id);
-
-      panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Alvo: ${card.name}</div>
-          <div class="target-list">
-            ${opponents.map(opp => {
-              const c = PLAYER_COLORS[opp.color];
-              return `<button class="btn target-btn" data-id="${opp.id}" style="border-color:${c.main}">
-                <span class="player-color-dot" style="background:${c.main}"></span>
-                ${opp.name} ($${opp.money})
-              </button>`;
-            }).join('')}
-          </div>
-          <button class="btn btn-secondary btn-small" id="target-back">← Voltar</button>
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <h2>Alvo: ${card.name}</h2>
+        <div class="target-list">
+          ${opponents.map(opp => {
+            const c = PLAYER_COLORS[opp.color];
+            return `<button class="btn target-btn" data-id="${opp.id}" style="border-color:${c.main}">
+              <span class="player-color-dot" style="background:${c.main}"></span>
+              ${opp.name} ($${opp.money})
+            </button>`;
+          }).join('')}
         </div>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-secondary btn-small" id="target-back">← Voltar</button></div>
       `;
 
-      panel.querySelectorAll('.target-btn').forEach(btn => {
+      modal.querySelectorAll('.target-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = parseInt(btn.dataset.id);
           const opp = opponents.find(p => p.id === id);
-          panel.innerHTML = '';
+          overlay.remove();
           if (card.targetType === 'opponent_business') {
             if (opp.businesses.length === 0) { this.gameState.addLog(`${opp.name} não tem negócios.`); resolve(null); return; }
             this.showOpponentBusinessSelection(player, cardIndex, opp).then(resolve);
@@ -434,68 +433,76 @@ class CapitalGame {
         });
       });
 
-      panel.querySelector('#target-back').addEventListener('click', () => { panel.innerHTML = ''; resolve(null); });
+      modal.querySelector('#target-back').addEventListener('click', () => { overlay.remove(); resolve(null); });
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
     });
   }
 
   showOpponentBusinessSelection(player, cardIndex, opponent) {
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
-      panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Negócio de ${opponent.name}</div>
-          <div class="target-list">
-            ${opponent.businesses.map((biz, i) =>
-              `<button class="btn target-btn" data-idx="${i}">${biz.label} Nv.${biz.level}</button>`
-            ).join('')}
-          </div>
-          <button class="btn btn-secondary btn-small" id="biz-back">← Voltar</button>
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <h2>Negócio de ${opponent.name}</h2>
+        <div class="target-list">
+          ${opponent.businesses.map((biz, i) =>
+            `<button class="btn target-btn" data-idx="${i}">${biz.label} Nv.${biz.level}</button>`
+          ).join('')}
         </div>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-secondary btn-small" id="biz-back">← Voltar</button></div>
       `;
 
-      panel.querySelectorAll('.target-btn').forEach(btn => {
+      modal.querySelectorAll('.target-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          panel.innerHTML = '';
+          overlay.remove();
           resolve({ type: 'play_card', cardIndex, target: { playerId: opponent.id, businessIndex: parseInt(btn.dataset.idx) } });
         });
       });
 
-      panel.querySelector('#biz-back').addEventListener('click', () => { panel.innerHTML = ''; resolve(null); });
+      modal.querySelector('#biz-back').addEventListener('click', () => { overlay.remove(); resolve(null); });
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
     });
   }
 
   showOwnBusinessSelection(player, cardIndex, card) {
     return new Promise(resolve => {
       if (player.businesses.length === 0) { this.gameState.addLog('Você não tem negócios.'); resolve(null); return; }
-      const panel = document.getElementById('action-panel');
-      panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Seu negócio: ${card.name}</div>
-          <div class="target-list">
-            ${player.businesses.map((biz, i) => {
-              const income = BonusCalculator.calculateIncome(biz, player.businesses, player.color);
-              return `<button class="btn target-btn" data-idx="${i}">${biz.label} Nv.${biz.level} — $${income}/turno</button>`;
-            }).join('')}
-          </div>
-          <button class="btn btn-secondary btn-small" id="own-biz-back">← Voltar</button>
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <h2>Seu negócio: ${card.name}</h2>
+        <div class="target-list">
+          ${player.businesses.map((biz, i) => {
+            const income = BonusCalculator.calculateIncome(biz, player.businesses, player.color);
+            return `<button class="btn target-btn" data-idx="${i}">${biz.label} Nv.${biz.level} — $${income}/turno</button>`;
+          }).join('')}
         </div>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-secondary btn-small" id="own-biz-back">← Voltar</button></div>
       `;
 
-      panel.querySelectorAll('.target-btn').forEach(btn => {
-        btn.addEventListener('click', () => { panel.innerHTML = ''; resolve({ type: 'play_card', cardIndex, target: { businessIndex: parseInt(btn.dataset.idx) } }); });
+      modal.querySelectorAll('.target-btn').forEach(btn => {
+        btn.addEventListener('click', () => { overlay.remove(); resolve({ type: 'play_card', cardIndex, target: { businessIndex: parseInt(btn.dataset.idx) } }); });
       });
 
-      panel.querySelector('#own-biz-back').addEventListener('click', () => { panel.innerHTML = ''; resolve(null); });
+      modal.querySelector('#own-biz-back').addEventListener('click', () => { overlay.remove(); resolve(null); });
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
     });
   }
 
   showBoardTargetSelection(player, cardIndex, card) {
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
+      const panel = document.getElementById('center-actions');
       panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Clique em uma casa</div>
-          <p class="action-hint">${card.name}: clique na casa desejada no tabuleiro</p>
+        <div class="center-action-menu">
+          <div class="center-action-title">${card.name}</div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">Clique na casa desejada</p>
           <button class="btn btn-secondary btn-small" id="board-back">← Voltar</button>
         </div>
       `;
@@ -524,35 +531,37 @@ class CapitalGame {
 
   showBuildMenu(player) {
     return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
-
-      panel.innerHTML = `
-        <div class="action-menu">
-          <div class="action-title">Construir (Casa ${player.position})</div>
-          <div class="build-options">
-            ${BUSINESS_ORDER.map(type => {
-              const config = BUSINESS_TYPES[type];
-              const canAfford = player.canAfford(config.cost);
-              return `<button class="btn build-btn ${!canAfford ? 'disabled' : ''}" data-type="${type}">
-                <span class="biz-dot" style="background:${config.color}"></span>
-                <span class="biz-name">${config.label}</span>
-                <span class="biz-price">$${config.cost}</span>
-                <span class="biz-income-label">→ $${config.baseIncome}/t</span>
-              </button>`;
-            }).join('')}
-          </div>
-          <button class="btn btn-secondary btn-small" id="build-back">← Voltar</button>
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <h2>Construir (Casa ${player.position})</h2>
+        <div class="build-options">
+          ${BUSINESS_ORDER.map(type => {
+            const config = BUSINESS_TYPES[type];
+            const canAfford = player.canAfford(config.cost);
+            return `<button class="btn build-btn ${!canAfford ? 'disabled' : ''}" data-type="${type}">
+              <span class="biz-dot" style="background:${config.color}"></span>
+              <span class="biz-name">${config.label}</span>
+              <span class="biz-price">$${config.cost}</span>
+              <span class="biz-income-label">→ $${config.baseIncome}/t</span>
+            </button>`;
+          }).join('')}
         </div>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-secondary btn-small" id="build-back">← Voltar</button></div>
       `;
 
-      panel.querySelectorAll('.build-btn:not(.disabled)').forEach(btn => {
+      modal.querySelectorAll('.build-btn:not(.disabled)').forEach(btn => {
         btn.addEventListener('click', () => {
-          panel.innerHTML = '';
+          overlay.remove();
           resolve({ type: 'build', businessType: btn.dataset.type });
         });
       });
 
-      panel.querySelector('#build-back').addEventListener('click', () => { panel.innerHTML = ''; resolve(null); });
+      modal.querySelector('#build-back').addEventListener('click', () => { overlay.remove(); resolve(null); });
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
     });
   }
 
@@ -633,14 +642,14 @@ class CapitalGame {
 
   // Botão interativo para iniciar o turno
   async waitForRollClick() {
-    const panel = document.getElementById('action-panel');
+    const panel = document.getElementById('center-actions');
     const player = this.gameState.currentPlayer;
     const colors = PLAYER_COLORS[player.color];
 
     if (player.isBot) {
       panel.innerHTML = `
-        <div class="action-menu roll-prompt">
-          <div class="roll-player" style="color:${colors.main}">🤖 ${player.name}</div>
+        <div class="center-action-menu">
+          <div class="center-action-title" style="color:${colors.main}">🤖 ${player.name}</div>
           <div class="bot-thinking">Pensando...</div>
         </div>
       `;
@@ -649,12 +658,11 @@ class CapitalGame {
       return;
     }
 
-    this.openActionsDrawer();
     return new Promise(resolve => {
       panel.innerHTML = `
-        <div class="action-menu roll-prompt">
-          <div class="roll-player" style="color:${colors.main}">${player.name}</div>
-          <button class="btn btn-primary btn-large roll-btn" id="roll-dice-btn">
+        <div class="center-action-menu">
+          <div class="center-action-title" style="color:${colors.main}">${player.name}</div>
+          <button class="btn btn-primary roll-btn" id="roll-dice-btn">
             🎲 Rolar Dados
           </button>
         </div>
@@ -663,19 +671,9 @@ class CapitalGame {
       panel.querySelector('#roll-dice-btn').addEventListener('click', () => {
         soundManager.playButtonClick();
         panel.innerHTML = '';
-        this.closeDrawers?.();
         resolve();
       });
     });
-  }
-
-  openActionsDrawer() {
-    if (window.innerHeight > 500) return; // só em mobile
-    const sidebar = document.querySelector('.sidebar-right');
-    const overlay = document.getElementById('drawer-overlay');
-    document.querySelector('.sidebar-left')?.classList.remove('open');
-    sidebar?.classList.add('open');
-    overlay?.classList.add('active');
   }
 
   setupEventListeners() {
