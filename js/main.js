@@ -2,7 +2,7 @@
 // Capital - Main Application
 // ========================================
 
-import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER } from './config/constants.js';
+import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT } from './config/constants.js';
 import { SPACES, hasBifurcation } from './config/board-layout.js';
 import { GameState } from './core/GameState.js';
 import { TurnManager } from './core/TurnManager.js';
@@ -594,21 +594,11 @@ class CapitalGame {
             const idx = parseInt(btn.dataset.index);
             const biz = player.businesses[idx];
             overlay.remove();
-            const result = await this.runAuction(player, biz, idx);
-            if (player.money >= 0) { resolve(true); } else {
-              if (player.businesses.length === 0) { resolve(false); return; }
-              // Re-open dialog
-              const newOverlay = document.createElement('div');
-              newOverlay.className = 'modal-overlay';
-              const newModal = document.createElement('div');
-              newModal.className = 'modal bankruptcy-modal';
-              newOverlay.appendChild(newModal);
-              document.getElementById('app').appendChild(newOverlay);
-              overlay.replaceWith(newOverlay);
-              Object.assign(overlay, newOverlay);
-              Object.assign(modal, newModal);
-              render();
-            }
+            await this.runAuction(player, biz, idx);
+            if (player.money >= 0) { resolve(true); return; }
+            if (player.businesses.length === 0) { resolve(false); return; }
+            // Reabrir recursivamente
+            this.showBankruptcyDialog(player).then(resolve);
           });
         });
 
@@ -623,16 +613,64 @@ class CapitalGame {
 
   runAuction(seller, business, bizIndex) {
     return new Promise(resolve => {
+      const minPrice = business.getSellValue();
+      const bidders = this.gameState.activePlayers.filter(p => p.id !== seller.id && !p.bankrupt);
+
+      // Sem compradores possíveis — vender direto
+      if (bidders.length === 0) {
+        seller.receive(minPrice);
+        seller.businesses.splice(bizIndex, 1);
+        this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice}.`);
+        this.updateUI();
+        resolve();
+        return;
+      }
+
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
       const modal = document.createElement('div');
       modal.className = 'modal';
-      const minPrice = business.getSellValue();
       let currentBid = minPrice;
       let currentBidder = null;
       let timeLeft = 10;
 
-      const bidders = this.gameState.activePlayers.filter(p => p.id !== seller.id && !p.bankrupt);
+      const sellDirect = () => {
+        clearInterval(timer);
+        seller.receive(minPrice);
+        seller.businesses.splice(bizIndex, 1);
+        this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice}.`);
+        overlay.remove();
+        this.updateUI();
+        resolve();
+      };
+
+      const finishAuction = () => {
+        clearInterval(timer);
+        try {
+          if (currentBidder) {
+            currentBidder.pay(currentBid);
+            seller.receive(currentBid);
+            business.slot = COLOR_SLOT[currentBidder.color];
+            currentBidder.businesses.push(business);
+            seller.businesses.splice(bizIndex, 1);
+            this.gameState.addLog(`${currentBidder.name} comprou ${business.label} de ${seller.name} por $${currentBid} no leilão!`);
+            this.showToast(`🔨 ${currentBidder.name} arrematou ${business.label}!`, 'info');
+          } else {
+            seller.receive(minPrice);
+            seller.businesses.splice(bizIndex, 1);
+            this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice} (sem lances).`);
+          }
+        } catch (err) {
+          console.error('Erro no leilão:', err);
+          seller.receive(minPrice);
+          if (seller.businesses.includes(business)) {
+            seller.businesses.splice(seller.businesses.indexOf(business), 1);
+          }
+        }
+        overlay.remove();
+        this.updateUI();
+        resolve();
+      };
 
       const render = () => {
         modal.innerHTML = `
@@ -665,40 +703,12 @@ class CapitalGame {
           });
         });
 
-        modal.querySelector('#auction-skip')?.addEventListener('click', () => {
-          clearInterval(timer);
-          seller.receive(minPrice);
-          seller.businesses.splice(bizIndex, 1);
-          this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice}.`);
-          overlay.remove();
-          this.updateUI();
-          resolve();
-        });
+        modal.querySelector('#auction-skip')?.addEventListener('click', sellDirect);
       };
 
       const timer = setInterval(() => {
         timeLeft--;
-        if (timeLeft <= 0) {
-          clearInterval(timer);
-          if (currentBidder) {
-            currentBidder.pay(currentBid);
-            seller.receive(currentBid);
-            // Transfer business
-            business.slot = this.gameState.getAvailableSlot(currentBidder, business.spaceId);
-            currentBidder.businesses.push(business);
-            seller.businesses.splice(bizIndex, 1);
-            this.gameState.addLog(`${currentBidder.name} comprou ${business.label} de ${seller.name} por $${currentBid} no leilão!`);
-            this.showToast(`🔨 ${currentBidder.name} arrematou ${business.label}!`, 'info');
-          } else {
-            seller.receive(minPrice);
-            seller.businesses.splice(bizIndex, 1);
-            this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice} (sem lances).`);
-          }
-          overlay.remove();
-          this.updateUI();
-          resolve();
-          return;
-        }
+        if (timeLeft <= 0) { finishAuction(); return; }
         render();
       }, 1000);
 
