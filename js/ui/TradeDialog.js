@@ -1,5 +1,5 @@
 // ========================================
-// TradeDialog - Troca de Cartas
+// TradeDialog - Troca de Cartas (multi-carta + dinheiro)
 // ========================================
 
 import { PLAYER_COLORS } from '../config/constants.js';
@@ -18,8 +18,9 @@ export class TradeDialog {
       modal.className = 'modal trade-modal';
 
       let selectedPartner = null;
-      let selectedGiveCard = null;
-      let selectedReceiveCard = null;
+      const selectedGiveCards = new Set();
+      const selectedReceiveCards = new Set();
+      let offerMoney = 0;
 
       const renderPartners = () => otherPlayers.map(p => {
         const colors = PLAYER_COLORS[p.color];
@@ -30,9 +31,8 @@ export class TradeDialog {
         </button>`;
       }).join('');
 
-      const renderCards = (cards, prefix) => cards.map((card, i) => `
-        <div class="trade-card ${prefix === 'give' && selectedGiveCard === i ? 'selected' : ''}
-             ${prefix === 'recv' && selectedReceiveCard === i ? 'selected' : ''}"
+      const renderCards = (cards, prefix, selectedSet) => cards.map((card, i) => `
+        <div class="trade-card ${selectedSet.has(i) ? 'selected' : ''}"
              data-${prefix}-index="${i}">
           <span class="card-icon">${card.icon}</span>
           <span class="card-name">${card.name}</span>
@@ -40,6 +40,8 @@ export class TradeDialog {
       `).join('');
 
       const render = () => {
+        const canConfirm = selectedPartner && (selectedGiveCards.size > 0 || offerMoney > 0) && (selectedReceiveCards.size > 0 || offerMoney < 0);
+
         modal.innerHTML = `
           <h2>🤝 Troca de Cartas</h2>
           <div class="trade-section">
@@ -49,19 +51,26 @@ export class TradeDialog {
           <div class="trade-columns">
             <div class="trade-col">
               <h3>Suas cartas (dar):</h3>
-              <div class="trade-cards">${renderCards(currentPlayer.cards, 'give')}</div>
+              <div class="trade-cards">${renderCards(currentPlayer.cards, 'give', selectedGiveCards)}</div>
             </div>
             ${selectedPartner ? `
             <div class="trade-col">
               <h3>Cartas de ${selectedPartner.name} (receber):</h3>
-              <div class="trade-cards">${renderCards(selectedPartner.cards, 'recv')}</div>
+              <div class="trade-cards">${renderCards(selectedPartner.cards, 'recv', selectedReceiveCards)}</div>
             </div>` : ''}
+          </div>
+          <div class="trade-money-section" style="margin:8px 0;display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;color:var(--text-secondary)">Incluir dinheiro:</label>
+            <button class="btn btn-small" id="money-minus">-$50</button>
+            <span style="font-weight:700;color:${offerMoney >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">
+              ${offerMoney >= 0 ? '+' : ''}$${offerMoney}
+            </span>
+            <button class="btn btn-small" id="money-plus">+$50</button>
           </div>
           <div class="trade-actions">
             <button class="btn btn-secondary" id="trade-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="trade-confirm"
-              ${!selectedPartner || selectedGiveCard === null || selectedReceiveCard === null ? 'disabled' : ''}>
-              Trocar
+            <button class="btn btn-primary" id="trade-confirm" ${!canConfirm ? 'disabled' : ''}>
+              Trocar (${selectedGiveCards.size}↔${selectedReceiveCards.size})
             </button>
           </div>
         `;
@@ -71,40 +80,50 @@ export class TradeDialog {
           btn.addEventListener('click', () => {
             const id = parseInt(btn.dataset.playerId);
             selectedPartner = otherPlayers.find(p => p.id === id);
-            selectedReceiveCard = null;
+            selectedReceiveCards.clear();
             render();
           });
         });
 
         modal.querySelectorAll('[data-give-index]').forEach(el => {
           el.addEventListener('click', () => {
-            selectedGiveCard = parseInt(el.dataset.giveIndex);
+            const idx = parseInt(el.dataset.giveIndex);
+            if (selectedGiveCards.has(idx)) selectedGiveCards.delete(idx);
+            else selectedGiveCards.add(idx);
             render();
           });
         });
 
         modal.querySelectorAll('[data-recv-index]').forEach(el => {
           el.addEventListener('click', () => {
-            selectedReceiveCard = parseInt(el.dataset.recvIndex);
+            const idx = parseInt(el.dataset.recvIndex);
+            if (selectedReceiveCards.has(idx)) selectedReceiveCards.delete(idx);
+            else selectedReceiveCards.add(idx);
             render();
           });
         });
 
-        const cancelBtn = modal.querySelector('#trade-cancel');
-        const confirmBtn = modal.querySelector('#trade-confirm');
+        modal.querySelector('#money-minus')?.addEventListener('click', () => {
+          if (currentPlayer.money + offerMoney >= 50) { offerMoney -= 50; render(); }
+        });
+        modal.querySelector('#money-plus')?.addEventListener('click', () => {
+          offerMoney += 50; render();
+        });
 
-        cancelBtn.addEventListener('click', () => {
+        modal.querySelector('#trade-cancel').addEventListener('click', () => {
           overlay.remove();
           resolve(null);
         });
 
+        const confirmBtn = modal.querySelector('#trade-confirm');
         if (confirmBtn && !confirmBtn.disabled) {
           confirmBtn.addEventListener('click', () => {
             overlay.remove();
             resolve({
               partner: selectedPartner,
-              giveIndex: selectedGiveCard,
-              receiveIndex: selectedReceiveCard,
+              giveIndices: [...selectedGiveCards].sort((a, b) => b - a),
+              receiveIndices: [...selectedReceiveCards].sort((a, b) => b - a),
+              money: offerMoney,
             });
           });
         }

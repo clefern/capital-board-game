@@ -4,8 +4,9 @@
 // Dois retângulos concêntricos de casas coladas.
 // Info dos jogadores nos espaços entre os retângulos.
 
-import { SPACES, BOARD_DIMENSIONS, SPACE_RENDER_SIZE, BOARD_CENTER, PATH_SEGMENTS, PLAYER_INFO_POSITIONS, INNER_DECO_POSITIONS } from '../config/board-layout.js';
+import { SPACES, BOARD_DIMENSIONS, SPACE_RENDER_W, SPACE_RENDER_H, BOARD_CENTER, PATH_SEGMENTS, PLAYER_INFO_POSITIONS, INNER_DECO_POSITIONS } from '../config/board-layout.js';
 import { PLAYER_COLORS, SPACE_TYPES, BUSINESS_TYPES, REGION_RENT_TIER, RENT_TIER_MULTIPLIER } from '../config/constants.js';
+import { BonusCalculator } from '../core/BonusCalculator.js';
 
 export class BoardRenderer {
   constructor(canvas) {
@@ -15,7 +16,8 @@ export class BoardRenderer {
     this.height = BOARD_DIMENSIONS.height;
     canvas.width = this.width;
     canvas.height = this.height;
-    this.cellSize = SPACE_RENDER_SIZE;
+    this.cellW = SPACE_RENDER_W;
+    this.cellH = SPACE_RENDER_H;
     this.hoveredSpace = null;
   }
 
@@ -57,14 +59,14 @@ export class BoardRenderer {
 
   // Casas decorativas do retângulo interno (completam o frame visual)
   drawDecoInnerCells(ctx) {
-    const s = this.cellSize;
-    const h = s / 2;
+    const w = this.cellW, h = this.cellH;
+    const hw = w / 2, hh = h / 2;
     for (const pos of INNER_DECO_POSITIONS) {
       ctx.fillStyle = 'rgba(30,50,40,0.6)';
-      ctx.fillRect(pos.x - h, pos.y - h, s, s);
+      ctx.fillRect(pos.x - hw, pos.y - hh, w, h);
       ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(pos.x - h, pos.y - h, s, s);
+      ctx.strokeRect(pos.x - hw, pos.y - hh, w, h);
     }
   }
 
@@ -76,16 +78,16 @@ export class BoardRenderer {
 
   drawSpace(ctx, space, gameState) {
     const { x, y } = space.position;
-    const s = this.cellSize;
-    const h = s / 2;
+    const w = this.cellW, h = this.cellH;
+    const hw = w / 2, hh = h / 2;
 
     if (space.type === SPACE_TYPES.NEST) {
-      this.drawNest(ctx, x, y, s, PLAYER_COLORS[space.nestColor]);
+      this.drawNest(ctx, x, y, w, h, PLAYER_COLORS[space.nestColor]);
       return;
     }
 
     if (space.type === SPACE_TYPES.MINIGAME || space.type === SPACE_TYPES.STOCK_EXCHANGE) {
-      this.drawSpecialSpace(ctx, x, y, s, space.type);
+      this.drawSpecialSpace(ctx, x, y, w, h, space.type);
       return;
     }
 
@@ -95,59 +97,54 @@ export class BoardRenderer {
     const border = regionColor ? regionColor.main : '#999';
 
     ctx.fillStyle = bg;
-    ctx.fillRect(x - h, y - h, s, s);
+    ctx.fillRect(x - hw, y - hh, w, h);
 
     ctx.strokeStyle = regionColor ? regionColor.dark : '#666';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(x - h, y - h, s, s);
+    ctx.strokeRect(x - hw, y - hh, w, h);
 
     // Linhas divisórias dos 4 quadrantes
     ctx.strokeStyle = this.darkenColor(border, 30);
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x - h + 1, y);
-    ctx.lineTo(x + h - 1, y);
+    ctx.moveTo(x - hw + 1, y);
+    ctx.lineTo(x + hw - 1, y);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x, y - h + 1);
-    ctx.lineTo(x, y + h - 1);
+    ctx.moveTo(x, y - hh + 1);
+    ctx.lineTo(x, y + hh - 1);
     ctx.stroke();
 
     // Negócios
     if (gameState) {
       const businesses = gameState.getBusinessesAtSpace(space.id);
       for (const { business, owner } of businesses) {
-        this.drawBusinessInSlot(ctx, x, y, s, business, owner);
+        this.drawBusinessInSlot(ctx, x, y, w, h, business, owner);
       }
     }
 
     // Pedágio — cancela com cifrão
     if (space.toll) {
       ctx.save();
-      // Overlay laranja
       ctx.fillStyle = 'rgba(255,102,0,0.15)';
-      ctx.fillRect(x - h, y - h, s, s);
+      ctx.fillRect(x - hw, y - hh, w, h);
 
-      // Barra da cancela (listrada)
       const barY = y - 4;
-      const barH = 6;
+      const barHt = 6;
       ctx.fillStyle = '#FF6600';
-      ctx.fillRect(x - h + 2, barY, s - 4, barH);
-      // Listras diagonais brancas na barra
+      ctx.fillRect(x - hw + 2, barY, w - 4, barHt);
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.5;
-      for (let lx = x - h + 6; lx < x + h - 2; lx += 8) {
+      for (let lx = x - hw + 6; lx < x + hw - 2; lx += 8) {
         ctx.beginPath();
         ctx.moveTo(lx, barY);
-        ctx.lineTo(lx + barH, barY + barH);
+        ctx.lineTo(lx + barHt, barY + barHt);
         ctx.stroke();
       }
 
-      // Poste esquerdo
       ctx.fillStyle = '#CC5500';
-      ctx.fillRect(x - h + 3, barY, 4, h + 4);
+      ctx.fillRect(x - hw + 3, barY, 4, hh + 4);
 
-      // Círculo central com $
       const cr = 12;
       ctx.fillStyle = '#FF6600';
       ctx.beginPath();
@@ -168,11 +165,9 @@ export class BoardRenderer {
     // Obstrução — cone de alerta
     if (space.obstruction) {
       ctx.save();
-      // Overlay vermelho
       ctx.fillStyle = 'rgba(204,0,0,0.15)';
-      ctx.fillRect(x - h, y - h, s, s);
+      ctx.fillRect(x - hw, y - hh, w, h);
 
-      // Triângulo de alerta
       const ty = y - 2;
       const tw = 22, th = 20;
       ctx.fillStyle = '#CC0000';
@@ -186,14 +181,12 @@ export class BoardRenderer {
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // ! no centro
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('!', x, ty + 2);
 
-      // Listras na base
       ctx.fillStyle = '#CC0000';
       ctx.fillRect(x - 14, y + 10, 28, 5);
       ctx.fillStyle = '#FFD700';
@@ -207,7 +200,7 @@ export class BoardRenderer {
     // Hover
     if (this.hoveredSpace === space.id) {
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(x - h, y - h, s, s);
+      ctx.fillRect(x - hw, y - hh, w, h);
     }
 
     // Destaque pulsante na casa do jogador atual
@@ -215,31 +208,33 @@ export class BoardRenderer {
       const pulse = 0.3 + 0.3 * Math.sin(Date.now() / 300);
       ctx.strokeStyle = `rgba(255,215,0,${pulse})`;
       ctx.lineWidth = 3;
-      ctx.strokeRect(x - h - 1, y - h - 1, s + 2, s + 2);
+      ctx.strokeRect(x - hw - 1, y - hh - 1, w + 2, h + 2);
     }
   }
 
-  getSlotCenter(cx, cy, size, slot) {
-    const q = size / 4;
+  getSlotCenter(cx, cy, cellW, cellH, slot) {
+    const qw = cellW / 4;
+    const qh = cellH / 4;
     const offsets = [
-      { x: -q, y: -q },
-      { x: +q, y: -q },
-      { x: -q, y: +q },
-      { x: +q, y: +q },
+      { x: -qw, y: -qh },
+      { x: +qw, y: -qh },
+      { x: -qw, y: +qh },
+      { x: +qw, y: +qh },
     ];
     const o = offsets[slot] || offsets[0];
     return { x: cx + o.x, y: cy + o.y };
   }
 
-  drawBusinessInSlot(ctx, cx, cy, size, business, owner) {
+  drawBusinessInSlot(ctx, cx, cy, cellW, cellH, business, owner) {
     const config = BUSINESS_TYPES[business.type];
-    const { x, y } = this.getSlotCenter(cx, cy, size, business.slot);
-    const hs = size / 4;
+    const { x, y } = this.getSlotCenter(cx, cy, cellW, cellH, business.slot);
+    const hsw = cellW / 4;
+    const hsh = cellH / 4;
     const pad = 2;
-    const sx = x - hs + pad;
-    const sy = y - hs + pad;
-    const sw = hs * 2 - pad * 2;
-    const sh = hs * 2 - pad * 2;
+    const sx = x - hsw + pad;
+    const sy = y - hsh + pad;
+    const sw = hsw * 2 - pad * 2;
+    const sh = hsh * 2 - pad * 2;
 
     // Fundo do slot
     ctx.fillStyle = this.darkenColor(config.color, 30);
@@ -267,6 +262,15 @@ export class BoardRenderer {
     ctx.strokeStyle = PLAYER_COLORS[owner.color].main;
     ctx.lineWidth = 2;
     ctx.strokeRect(sx, sy, sw, sh);
+
+    // Indicador de bônus (borda dourada brilhante)
+    const bonusMult = BonusCalculator.getTotalBonusMultiplier(business, owner.businesses, owner.color);
+    if (bonusMult > 1) {
+      const glow = 0.4 + 0.3 * Math.sin(Date.now() / 600);
+      ctx.strokeStyle = `rgba(255,215,0,${glow})`;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx - 1, sy - 1, sw + 2, sh + 2);
+    }
 
     // Nível (badge)
     if (business.level > 1) {
@@ -485,19 +489,18 @@ export class BoardRenderer {
     ctx.fillRect(sx + 3, sy + sh * 0.85, sw - 6, sh * 0.1);
   }
 
-  drawNest(ctx, x, y, size, colors) {
-    const s = size;
-    const h = s / 2;
+  drawNest(ctx, x, y, w, h, colors) {
+    const hw = w / 2, hh = h / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    this.roundRect(ctx, x - h + 2, y - h + 2, s, s, 4);
+    this.roundRect(ctx, x - hw + 2, y - hh + 2, w, h, 4);
     ctx.fill();
 
-    const grad = ctx.createRadialGradient(x - 3, y - 3, 0, x, y, h);
+    const grad = ctx.createRadialGradient(x - 3, y - 3, 0, x, y, Math.min(hw, hh));
     grad.addColorStop(0, colors.light || '#fff');
     grad.addColorStop(1, colors.main);
     ctx.fillStyle = grad;
-    this.roundRect(ctx, x - h, y - h, s, s, 4);
+    this.roundRect(ctx, x - hw, y - hh, w, h, 4);
     ctx.fill();
 
     ctx.strokeStyle = colors.dark;
@@ -505,24 +508,24 @@ export class BoardRenderer {
     ctx.stroke();
 
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = `${Math.floor(size * 0.35)}px sans-serif`;
+    ctx.font = `${Math.floor(Math.min(w, h) * 0.35)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('🏠', x, y);
   }
 
-  drawSpecialSpace(ctx, x, y, size, type) {
-    const h = size / 2;
+  drawSpecialSpace(ctx, x, y, w, h, type) {
+    const hw = w / 2, hh = h / 2;
     const isMinigame = type === SPACE_TYPES.MINIGAME;
 
     ctx.fillStyle = isMinigame ? '#d4a5e8' : '#fad390';
-    ctx.fillRect(x - h, y - h, size, size);
+    ctx.fillRect(x - hw, y - hh, w, h);
 
     ctx.strokeStyle = isMinigame ? '#9B59B6' : '#F39C12';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x - h, y - h, size, size);
+    ctx.strokeRect(x - hw, y - hh, w, h);
 
-    ctx.font = `${Math.floor(size * 0.32)}px sans-serif`;
+    ctx.font = `${Math.floor(Math.min(w, h) * 0.32)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(isMinigame ? '🎮' : '📊', x, y - 4);
@@ -535,7 +538,7 @@ export class BoardRenderer {
       const sp = SPACES.find(s => s.id === this.hoveredSpace);
       if (sp && sp.position.x === x && sp.position.y === y) {
         ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.fillRect(x - h, y - h, size, size);
+        ctx.fillRect(x - hw, y - hh, w, h);
       }
     }
   }
@@ -551,7 +554,7 @@ export class BoardRenderer {
       const colors = PLAYER_COLORS[player.color];
       const tier = REGION_RENT_TIER[player.color] || 1;
       const mult = RENT_TIER_MULTIPLIER[tier] || 1;
-      const pw = 156, ph = 156;
+      const pw = 2 * this.cellW - 8, ph = 2 * this.cellH - 8;
       const px = pos.x - pw / 2;
       const py = pos.y - ph / 2;
       const isActive = gameState.currentPlayer.id === player.id;
@@ -712,7 +715,7 @@ export class BoardRenderer {
         basey = sp.position.y;
       }
 
-      const off = this.getSlotCenter(0, 0, this.cellSize, slot);
+      const off = this.getSlotCenter(0, 0, this.cellW, this.cellH, slot);
       const px = basex + off.x;
       const py = basey + off.y;
 
@@ -722,8 +725,9 @@ export class BoardRenderer {
 
   drawPawn(ctx, px, py, player, isActive) {
     const c = PLAYER_COLORS[player.color];
-    const slotSize = this.cellSize / 2; // 40px por slot
-    const sc = slotSize / 20;           // escala para preencher o slot (~2.0)
+    const slotW = this.cellW / 2;
+    const slotH = this.cellH / 2;
+    const sc = Math.min(slotW, slotH) / 20;
 
     // Sombra
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -765,8 +769,8 @@ export class BoardRenderer {
       ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
-      const hs = slotSize / 2 - 1;
-      ctx.strokeRect(px - hs, py - hs, slotSize - 2, slotSize - 2);
+      const hsw = slotW / 2 - 1, hsh = slotH / 2 - 1;
+      ctx.strokeRect(px - hsw, py - hsh, slotW - 2, slotH - 2);
       ctx.setLineDash([]);
     }
   }
@@ -806,9 +810,10 @@ export class BoardRenderer {
   }
 
   getSpaceAtPosition(mx, my) {
-    const tol = this.cellSize / 2 + 4;
+    const tolX = this.cellW / 2 + 4;
+    const tolY = this.cellH / 2 + 4;
     for (const space of SPACES) {
-      if (Math.abs(mx - space.position.x) < tol && Math.abs(my - space.position.y) < tol) {
+      if (Math.abs(mx - space.position.x) < tolX && Math.abs(my - space.position.y) < tolY) {
         return space;
       }
     }

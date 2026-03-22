@@ -264,12 +264,15 @@ class CapitalGame {
         }
         return this.showActionMenu(player, gs);
       },
-      executeTrade: (player, targetPlayer, giveIdx, receiveIdx) => {
-        const giveCard = player.removeCard(giveIdx);
-        const receiveCard = targetPlayer.removeCard(receiveIdx);
-        player.addCard(receiveCard);
-        targetPlayer.addCard(giveCard);
-        this.gameState.addLog(`${player.name} trocou cartas com ${targetPlayer.name}.`);
+      executeTrade: (player, targetPlayer, giveIndices, receiveIndices, money = 0) => {
+        // Multi-card trade: indices sorted descending to avoid index shifting
+        const givenCards = giveIndices.map(i => player.removeCard(i));
+        const receivedCards = receiveIndices.map(i => targetPlayer.removeCard(i));
+        givenCards.forEach(c => targetPlayer.addCard(c));
+        receivedCards.forEach(c => player.addCard(c));
+        if (money > 0) { player.pay(money); targetPlayer.receive(money); }
+        else if (money < 0) { targetPlayer.pay(-money); player.receive(-money); }
+        this.gameState.addLog(`${player.name} trocou ${givenCards.length}↔${receivedCards.length} cartas com ${targetPlayer.name}${money ? ` (+$${Math.abs(money)})` : ''}.`);
       },
     };
   }
@@ -326,7 +329,7 @@ class CapitalGame {
         }
         const result = await this.tradeDialog.show(player, others);
         if (result) {
-          resolve({ type: 'trade', targetPlayer: result.partner, give: result.giveIndex, receive: result.receiveIndex });
+          resolve({ type: 'trade', targetPlayer: result.partner, give: result.giveIndices, receive: result.receiveIndices, money: result.money || 0 });
         } else {
           this.showActionMenu(player, gs).then(resolve);
         }
@@ -577,28 +580,127 @@ class CapitalGame {
       const render = () => {
         modal.innerHTML = `
           <h2>⚠️ Saldo: $${player.money}</h2>
-          <p>Venda negócios ou declare falência.</p>
+          <p>Leiloe negócios para outros jogadores ou declare falência.</p>
           <div class="sell-list">
             ${player.businesses.map((biz, i) =>
-              `<button class="btn sell-btn" data-index="${i}">Vender ${biz.label} Nv.${biz.level} → $${biz.getSellValue()}</button>`
+              `<button class="btn sell-btn" data-index="${i}">🔨 Leiloar ${biz.label} Nv.${biz.level} (mín. $${biz.getSellValue()})</button>`
             ).join('')}
           </div>
           <button class="btn btn-danger" id="declare-bankrupt">Declarar Falência</button>
         `;
 
         modal.querySelectorAll('.sell-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const idx = parseInt(btn.dataset.index);
             const biz = player.businesses[idx];
-            player.receive(biz.getSellValue());
-            player.businesses.splice(idx, 1);
-            this.gameState.addLog(`${player.name} vendeu ${biz.label} por $${biz.getSellValue()}.`);
-            if (player.money >= 0) { overlay.remove(); resolve(true); } else { render(); }
+            overlay.remove();
+            const result = await this.runAuction(player, biz, idx);
+            if (player.money >= 0) { resolve(true); } else {
+              if (player.businesses.length === 0) { resolve(false); return; }
+              // Re-open dialog
+              const newOverlay = document.createElement('div');
+              newOverlay.className = 'modal-overlay';
+              const newModal = document.createElement('div');
+              newModal.className = 'modal bankruptcy-modal';
+              newOverlay.appendChild(newModal);
+              document.getElementById('app').appendChild(newOverlay);
+              overlay.replaceWith(newOverlay);
+              Object.assign(overlay, newOverlay);
+              Object.assign(modal, newModal);
+              render();
+            }
           });
         });
 
         modal.querySelector('#declare-bankrupt').addEventListener('click', () => { overlay.remove(); resolve(false); });
       };
+
+      overlay.appendChild(modal);
+      document.getElementById('app').appendChild(overlay);
+      render();
+    });
+  }
+
+  runAuction(seller, business, bizIndex) {
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const minPrice = business.getSellValue();
+      let currentBid = minPrice;
+      let currentBidder = null;
+      let timeLeft = 10;
+
+      const bidders = this.gameState.activePlayers.filter(p => p.id !== seller.id && !p.bankrupt);
+
+      const render = () => {
+        modal.innerHTML = `
+          <h2>🔨 Leilão: ${business.label} Nv.${business.level}</h2>
+          <div style="text-align:center;margin:10px 0">
+            <div style="font-size:24px;font-weight:700;color:var(--accent-gold)">$${currentBid}</div>
+            <div style="font-size:12px;color:var(--text-secondary)">${currentBidder ? `Maior lance: ${currentBidder.name}` : 'Sem lances'}</div>
+            <div style="font-size:18px;font-weight:700;margin-top:6px;color:${timeLeft <= 3 ? 'var(--accent-red)' : 'var(--text-primary)'}">${timeLeft}s</div>
+          </div>
+          <div class="target-list">
+            ${bidders.map(p => {
+              const colors = PLAYER_COLORS[p.color];
+              const canBid = p.canAfford(currentBid + 50);
+              return `<button class="btn target-btn ${!canBid ? 'disabled' : ''}" data-id="${p.id}" style="border-color:${colors.main}">
+                <span class="player-color-dot" style="background:${colors.main}"></span>
+                ${p.name} ($${p.money}) — Lance $${currentBid + 50}
+              </button>`;
+            }).join('')}
+          </div>
+          <button class="btn btn-secondary" id="auction-skip" style="margin-top:8px;width:100%">Vender por $${minPrice} (sem leilão)</button>
+        `;
+
+        modal.querySelectorAll('.target-btn:not(.disabled)').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = parseInt(btn.dataset.id);
+            currentBidder = bidders.find(p => p.id === id);
+            currentBid += 50;
+            timeLeft = 10;
+            render();
+          });
+        });
+
+        modal.querySelector('#auction-skip')?.addEventListener('click', () => {
+          clearInterval(timer);
+          seller.receive(minPrice);
+          seller.businesses.splice(bizIndex, 1);
+          this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice}.`);
+          overlay.remove();
+          this.updateUI();
+          resolve();
+        });
+      };
+
+      const timer = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          if (currentBidder) {
+            currentBidder.pay(currentBid);
+            seller.receive(currentBid);
+            // Transfer business
+            business.slot = this.gameState.getAvailableSlot(currentBidder, business.spaceId);
+            currentBidder.businesses.push(business);
+            seller.businesses.splice(bizIndex, 1);
+            this.gameState.addLog(`${currentBidder.name} comprou ${business.label} de ${seller.name} por $${currentBid} no leilão!`);
+            this.showToast(`🔨 ${currentBidder.name} arrematou ${business.label}!`, 'info');
+          } else {
+            seller.receive(minPrice);
+            seller.businesses.splice(bizIndex, 1);
+            this.gameState.addLog(`${seller.name} vendeu ${business.label} por $${minPrice} (sem lances).`);
+          }
+          overlay.remove();
+          this.updateUI();
+          resolve();
+          return;
+        }
+        render();
+      }, 1000);
 
       overlay.appendChild(modal);
       document.getElementById('app').appendChild(overlay);
@@ -821,11 +923,38 @@ class CapitalGame {
     eventBus.on('log', (message) => this.appendLog(message));
 
     // Atualizar HUD em tempo real quando eventos acontecem
-    eventBus.on('lapCompleted', () => this.updateUI());
-    eventBus.on('businessBuilt', () => this.updateUI());
+    eventBus.on('lapCompleted', (data) => { this.updateUI(); this.showToast(`🔄 ${data?.player?.name || 'Jogador'} completou uma volta!`, 'info'); });
+    eventBus.on('businessBuilt', (data) => { this.updateUI(); if (data?.cost) this.showFloatingNumber(-data.cost); });
     eventBus.on('cardPlayed', () => this.updateUI());
-    eventBus.on('bankruptcy', () => this.updateUI());
+    eventBus.on('bankruptcy', (data) => { this.updateUI(); this.showToast(`💀 ${data?.player?.name || 'Jogador'} faliu!`, 'danger'); });
     eventBus.on('boardUpdate', () => this.updateUI());
+    eventBus.on('payment', (data) => { if (data?.amount) this.showFloatingNumber(-Math.abs(data.amount)); });
+    eventBus.on('income', (data) => { if (data?.amount) this.showFloatingNumber(Math.abs(data.amount)); });
+  }
+
+  showFloatingNumber(amount) {
+    const container = document.querySelector('.game-center');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'float-number';
+    el.style.color = amount > 0 ? '#4ADE80' : '#F87171';
+    el.textContent = `${amount > 0 ? '+' : ''}$${Math.abs(amount)}`;
+    container.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+
+  showToast(message, type = 'info') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.getElementById('app').appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 
   updateUI() {

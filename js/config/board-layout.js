@@ -24,11 +24,13 @@ const { NEST, PROPERTY, MINIGAME, STOCK_EXCHANGE } = SPACE_TYPES;
 const BOARD_W = 940;
 const BOARD_H = 780;
 const PAD = 30;
-const CELL = 80;
+const CELL_W = 84;
+const CELL_H = 72;
+const OFF_X = (BOARD_W - 10 * CELL_W) / 2;  // 50
+const OFF_Y = (BOARD_H - 8 * CELL_H) / 2;   // 102
 
 // Grid: col 0-10, row 0-8
-// Posição = (70 + col*80, 70 + row*80)
-function g(col, row) { return { x: 70 + col * CELL, y: 70 + row * CELL }; }
+function g(col, row) { return { x: OFF_X + col * CELL_W, y: OFF_Y + row * CELL_H }; }
 
 function buildSpaces() {
   const s = [];
@@ -165,18 +167,15 @@ export const PATH_SEGMENTS = [
 ];
 
 export const BOARD_DIMENSIONS = { width: BOARD_W, height: BOARD_H };
-export const SPACE_RENDER_SIZE = CELL;
+export const SPACE_RENDER_W = CELL_W;
+export const SPACE_RENDER_H = CELL_H;
 export const BOARD_CENTER = { x: BOARD_W / 2, y: BOARD_H / 2 };
 
 // Info dos jogadores no espaço 2×2 vazio DENTRO de cada moldura
-// g(col,row) = (70+col*80, 70+row*80)
-// Blue frame: cols 7-10, rows 0-3 → vazio em cols 8-9, rows 1-2 → centro (710, 190)
-// Yellow frame: cols 7-10, rows 5-8 → vazio em cols 8-9, rows 6-7 → centro (710, 590)
-// Red frame: cols 0-3, rows 5-8 → vazio em cols 1-2, rows 6-7 → centro (190, 590)
-// Green frame: cols 0-3, rows 0-3 → vazio em cols 1-2, rows 1-2 → centro (190, 190)
+// Centros calculados a partir de g(col,row) com CELL_W=84, CELL_H=72
 export const PLAYER_INFO_POSITIONS = {
-  blue:   { x: 750, y: 190 },
-  yellow: { x: 750, y: 590 },
-  red:    { x: 190, y: 590 },
-  green:  { x: 190, y: 190 },
+  blue:   { x: (g(8,0).x + g(9,0).x) / 2, y: (g(0,1).y + g(0,2).y) / 2 },
+  yellow: { x: (g(8,0).x + g(9,0).x) / 2, y: (g(0,6).y + g(0,7).y) / 2 },
+  red:    { x: (g(1,0).x + g(2,0).x) / 2, y: (g(0,6).y + g(0,7).y) / 2 },
+  green:  { x: (g(1,0).x + g(2,0).x) / 2, y: (g(0,1).y + g(0,2).y) / 2 },
 };

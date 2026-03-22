@@ -570,3 +570,64 @@ body {
   .center-act-pass { font-size: 11px; padding: 4px; }
   .roll-btn { padding: 8px 16px; font-size: 13px; }
 }
+
+/* =========================================
+   FLOATING NUMBERS - Transações
+   ========================================= */
+.float-number {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  font-size: 22px;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 45;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  animation: floatUp 1.5s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -60px); }
+}
+
+/* =========================================
+   TOASTS - Notificações
+   ========================================= */
+.toast-container {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.7s forwards;
+  white-space: nowrap;
+}
+
+.toast-info { background: rgba(242, 201, 76, 0.9); color: #1a1a2e; }
+.toast-success { background: rgba(39, 174, 96, 0.9); }
+.toast-danger { background: rgba(235, 87, 87, 0.9); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-10px); }
+}

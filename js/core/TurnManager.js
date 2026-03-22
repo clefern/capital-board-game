@@ -202,7 +202,7 @@ export class TurnManager {
         soundManager.playBuild();
         break;
       case 'trade':
-        await this.ui.executeTrade(player, action.targetPlayer, action.give, action.receive);
+        await this.ui.executeTrade(player, action.targetPlayer, action.give, action.receive, action.money);
         break;
       case 'pass':
         this.gs.addLog(`${player.name} passou a vez.`);
