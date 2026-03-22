@@ -278,6 +278,75 @@ export class SoundManager {
     this._osc('sine', 880, now + 0.1, 0.15, 0.18);
     this._osc('triangle', 880, now + 0.1, 0.1, 0.05);
   }
+
+  // ── Background Music (procedural lo-fi) ────────────────────
+
+  _musicPlaying = false;
+  _musicGain = null;
+  _musicTimer = null;
+
+  startMusic() {
+    if (this._musicPlaying) return;
+    this._musicPlaying = true;
+    const ctx = this._getCtx();
+
+    this._musicGain = ctx.createGain();
+    this._musicGain.gain.setValueAtTime(0, ctx.currentTime);
+    this._musicGain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 2);
+    this._musicGain.connect(ctx.destination);
+
+    this._playMusicLoop();
+  }
+
+  stopMusic() {
+    if (!this._musicPlaying) return;
+    this._musicPlaying = false;
+    if (this._musicTimer) clearTimeout(this._musicTimer);
+    if (this._musicGain) {
+      const ctx = this._getCtx();
+      this._musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+    }
+  }
+
+  _playMusicLoop() {
+    if (!this._musicPlaying) return;
+    const ctx = this._getCtx();
+    const now = ctx.currentTime;
+
+    // Chord progression: C Am F G (lo-fi style)
+    const chords = [
+      [261, 329, 392],  // C major
+      [220, 261, 329],  // A minor
+      [174, 220, 261],  // F major
+      [196, 246, 294],  // G major
+    ];
+
+    const chordDuration = 2.0;
+    const totalDuration = chords.length * chordDuration;
+
+    chords.forEach((chord, ci) => {
+      const t = now + ci * chordDuration;
+      chord.forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+
+        const vol = this._muted ? 0 : 0.06;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(vol, t + 0.3);
+        gain.gain.setValueAtTime(vol, t + chordDuration - 0.5);
+        gain.gain.linearRampToValueAtTime(0, t + chordDuration);
+
+        osc.connect(gain);
+        gain.connect(this._musicGain);
+        osc.start(t);
+        osc.stop(t + chordDuration);
+      });
+    });
+
+    this._musicTimer = setTimeout(() => this._playMusicLoop(), totalDuration * 1000);
+  }
 }
 
 /** Singleton instance. */

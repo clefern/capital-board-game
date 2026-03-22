@@ -1,5 +1,5 @@
 /* ========================================
-   Cards - Sidebar Direita (Cartas)
+   Cards - Sidebar Direita (Cartas) - Premium
    ======================================== */
 
 .card-container {
@@ -13,42 +13,86 @@
 .hand-label {
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-weight: 600;
   padding: 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .cards-container {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
+/* === Card Design Premium === */
 .card {
-  padding: 10px;
-  background: var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #1e293b 0%, #172033 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   font-size: 12px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  animation: cardSlideIn 0.3s ease-out both;
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Brilho sutil no topo */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
 }
 
 .card:hover, .card.hovered {
   border-color: var(--accent-gold);
-  background: rgba(242, 201, 76, 0.05);
-  transform: translateX(3px);
+  background: linear-gradient(145deg, #243044 0%, #1e293b 100%);
+  transform: translateX(4px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3), 0 0 0 1px rgba(242,201,76,0.2);
+  z-index: 2;
 }
 
+/* Carta de Vitória — borda vermelha + gradiente especial */
 .card.victory-card {
   border-color: rgba(235, 87, 87, 0.5);
-  background: linear-gradient(135deg, var(--bg-card), rgba(235, 87, 87, 0.08));
+  background: linear-gradient(145deg, #2a1f2e 0%, #1e1525 100%);
+  border-left: 3px solid var(--accent-red);
 }
 
-.card-icon { font-size: 22px; flex-shrink: 0; }
+.card.victory-card::before {
+  background: linear-gradient(90deg, transparent, rgba(235,87,87,0.2), transparent);
+}
+
+.card.victory-card:hover {
+  border-color: var(--accent-red);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3), 0 0 0 1px rgba(235,87,87,0.3);
+}
+
+.card-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+}
 
 .card-info { flex: 1; min-width: 0; }
 
@@ -56,13 +100,14 @@
   font-weight: 700;
   font-size: 13px;
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  color: #e2e8f0;
 }
 
 .card-desc {
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .card-cost {
@@ -70,6 +115,10 @@
   color: var(--accent-gold);
   font-size: 13px;
   flex-shrink: 0;
+  padding: 2px 8px;
+  background: rgba(242,201,76,0.1);
+  border-radius: 4px;
+  align-self: center;
 }
 
 /* Card selection in action panel */
@@ -90,14 +139,25 @@
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   font-size: 12px;
 }
 
-.card-option:hover { border-color: var(--accent-gold); }
-.card-option.victory { border-color: rgba(235, 87, 87, 0.4); }
+.card-option:hover {
+  border-color: var(--accent-gold);
+  transform: translateX(2px);
+}
+.card-option.victory {
+  border-color: rgba(235, 87, 87, 0.4);
+  border-left: 3px solid var(--accent-red);
+}
 .card-option.disabled { opacity: 0.35; pointer-events: none; }
 
+.card-option .card-icon {
+  font-size: 18px;
+  width: 26px; height: 26px;
+}
+
 .card-option-info { flex: 1; min-width: 0; }
-.card-option-info .card-name { font-size: 13px; }
-.card-desc-small { color: var(--text-secondary); font-size: 11px; display: block; }
+.card-option-info .card-name { font-size: 12px; }
+.card-desc-small { color: var(--text-secondary); font-size: 10px; display: block; }

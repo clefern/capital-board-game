@@ -6,10 +6,12 @@ import { STARTING_MONEY, STARTING_DICE } from '../config/constants.js';
 import { NEST_POSITIONS } from '../config/board-layout.js';
 
 export class Player {
-  constructor(id, color, name) {
+  constructor(id, color, name, isBot = false) {
     this.id = id;
     this.color = color;
     this.name = name || `Jogador ${id + 1}`;
+    this.isBot = isBot;
+    this.lastDice = null;
     this.money = STARTING_MONEY;
     this.position = NEST_POSITIONS[color];
     this.cards = [];
@@ -29,6 +31,14 @@ export class Player {
     };
 
     this.bankrupt = false;
+
+    // Estatísticas do jogo
+    this.stats = {
+      totalEarned: 0,
+      totalSpent: 0,
+      businessesBuilt: 0,
+      cardsPlayed: 0,
+    };
   }
 
   // Patrimônio total = dinheiro + valor dos negócios
@@ -55,15 +65,19 @@ export class Player {
 
   pay(amount) {
     this.money -= amount;
+    this.stats.totalSpent += amount;
+    this._moneyFlash = { amount: -amount, time: Date.now() };
     return this.money;
   }
 
   receive(amount) {
     if (this.effects.contaTrancada) {
       this.effects.contaTrancada = false;
-      return 0; // Dinheiro vai pra prefeitura
+      return 0;
     }
     this.money += amount;
+    this.stats.totalEarned += amount;
+    this._moneyFlash = { amount, time: Date.now() };
     return amount;
   }
 
@@ -87,6 +101,7 @@ export class Player {
         results.push(Math.floor(Math.random() * 6) + 1);
       }
     }
+    this.lastDice = results;
     return results;
   }
 

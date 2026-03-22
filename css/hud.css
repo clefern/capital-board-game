@@ -24,6 +24,17 @@
   box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.25);
 }
 
+.player-panel.active .info-row,
+.player-panel.active .business-item,
+.player-panel.active .business-item small,
+.player-panel.active .effect-badge {
+  color: #1a1a2e;
+}
+
+.player-panel.active .money { color: #0d6832; }
+.player-panel.active .money.negative { color: #a11; }
+.player-panel.active .biz-income { color: #0d6832; }
+
 .player-panel.bankrupt { opacity: 0.4; }
 
 .player-header {
@@ -90,4 +101,26 @@
   color: var(--accent-green);
   font-weight: 600;
   font-size: 12px;
+}
+
+/* Log colorido por tipo */
+.log-entry { padding: 2px 6px; border-radius: 3px; margin-bottom: 1px; font-size: 12px; }
+.log-payment { color: #f87171; background: rgba(248,113,113,0.08); }
+.log-income { color: #4ade80; background: rgba(74,222,128,0.08); }
+.log-card { color: #60a5fa; background: rgba(96,165,250,0.08); }
+.log-build { color: #c084fc; background: rgba(192,132,252,0.08); }
+.log-system { color: #fbbf24; background: rgba(251,191,36,0.08); font-weight: 600; }
+
+/* Bot thinking indicator */
+.bot-thinking {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 12px 0;
+  animation: botPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes botPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }

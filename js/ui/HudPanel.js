@@ -28,6 +28,7 @@ export class HudPanel {
 
       if (gameState.currentPlayer.id === player.id) {
         panel.style.backgroundColor = colors.light;
+        panel.style.color = '#1a1a2e';
       }
 
       // Header
@@ -35,7 +36,7 @@ export class HudPanel {
       header.className = 'player-header';
       header.innerHTML = `
         <span class="player-color-dot" style="background:${colors.main}"></span>
-        <span class="player-name">${player.name}</span>
+        <span class="player-name">${player.isBot ? '🤖 ' : ''}${player.name}</span>
         ${player.bankrupt ? '<span class="bankrupt-badge">FALIDO</span>' : ''}
       `;
       panel.appendChild(header);

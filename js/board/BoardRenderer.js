@@ -1,12 +1,11 @@
 // ========================================
-// BoardRenderer - Casas divididas em 4 quadrantes
+// BoardRenderer - Tabuleiro retangular com casas coladas
 // ========================================
-// Cada casa de propriedade é um quarteirão com 4 terrenos.
-// Cada terreno pode ter uma construção.
-// Casas conectadas sem espaço, separadas por suas bordas.
+// Dois retângulos concêntricos de casas coladas.
+// Info dos jogadores nos espaços entre os retângulos.
 
-import { SPACES, BOARD_DIMENSIONS, SPACE_RENDER_SIZE, BOARD_CENTER, PATH_SEGMENTS } from '../config/board-layout.js';
-import { PLAYER_COLORS, SPACE_TYPES, BUSINESS_TYPES } from '../config/constants.js';
+import { SPACES, BOARD_DIMENSIONS, SPACE_RENDER_SIZE, BOARD_CENTER, PATH_SEGMENTS, PLAYER_INFO_POSITIONS, INNER_DECO_POSITIONS } from '../config/board-layout.js';
+import { PLAYER_COLORS, SPACE_TYPES, BUSINESS_TYPES, REGION_RENT_TIER, RENT_TIER_MULTIPLIER } from '../config/constants.js';
 
 export class BoardRenderer {
   constructor(canvas) {
@@ -23,16 +22,18 @@ export class BoardRenderer {
   render(gameState) {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
+    this._currentPlayerPos = gameState ? gameState.currentPlayer.position : -1;
     this.drawBoardBackground(ctx);
     this.drawRegionFills(ctx);
-    this.drawAllPaths(ctx);
+    this.drawDecoInnerCells(ctx);
     this.drawSpaces(ctx, gameState);
     this.drawCenterLogo(ctx, gameState);
+    this.drawPlayerInfoPanels(ctx, gameState);
     this.drawPawns(ctx, gameState);
   }
 
   drawBoardBackground(ctx) {
-    const grad = ctx.createRadialGradient(this.width / 2, this.height / 2, 200, this.width / 2, this.height / 2, 700);
+    const grad = ctx.createRadialGradient(this.width / 2, this.height / 2, 150, this.width / 2, this.height / 2, 600);
     grad.addColorStop(0, '#1e5738');
     grad.addColorStop(1, '#0f2d1c');
     ctx.fillStyle = grad;
@@ -44,30 +45,26 @@ export class BoardRenderer {
   }
 
   drawRegionFills(ctx) {
-    const mid = this.width / 2;
-    const p = 25;
-    const a = 0.08;
-    ctx.fillStyle = `rgba(47,128,237,${a})`; ctx.fillRect(p, p, mid - p, mid - p);
-    ctx.fillStyle = `rgba(242,201,76,${a})`; ctx.fillRect(mid, p, mid - p, mid - p);
-    ctx.fillStyle = `rgba(235,87,87,${a})`;  ctx.fillRect(mid, mid, mid - p, mid - p);
-    ctx.fillStyle = `rgba(39,174,96,${a})`;  ctx.fillRect(p, mid, mid - p, mid - p);
+    const midX = this.width / 2;
+    const midY = this.height / 2;
+    const p = 20;
+    const a = 0.06;
+    ctx.fillStyle = `rgba(47,128,237,${a})`;  ctx.fillRect(p, p, midX - p, midY - p);
+    ctx.fillStyle = `rgba(242,201,76,${a})`;  ctx.fillRect(midX, p, midX - p, midY - p);
+    ctx.fillStyle = `rgba(235,87,87,${a})`;   ctx.fillRect(midX, midY, midX - p, midY - p);
+    ctx.fillStyle = `rgba(39,174,96,${a})`;   ctx.fillRect(p, midY, midX - p, midY - p);
   }
 
-  drawAllPaths(ctx) {
-    for (const seg of PATH_SEGMENTS) {
-      const isInner = seg.label.startsWith('inner');
-      ctx.strokeStyle = isInner ? 'rgba(242,201,76,0.15)' : 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = isInner ? 1.5 : 2;
-      if (isInner) ctx.setLineDash([4, 3]);
-
-      ctx.beginPath();
-      const start = SPACES[seg.from];
-      ctx.moveTo(start.position.x, start.position.y);
-      for (const id of seg.path) {
-        ctx.lineTo(SPACES[id].position.x, SPACES[id].position.y);
-      }
-      ctx.stroke();
-      ctx.setLineDash([]);
+  // Casas decorativas do retângulo interno (completam o frame visual)
+  drawDecoInnerCells(ctx) {
+    const s = this.cellSize;
+    const h = s / 2;
+    for (const pos of INNER_DECO_POSITIONS) {
+      ctx.fillStyle = 'rgba(30,50,40,0.6)';
+      ctx.fillRect(pos.x - h, pos.y - h, s, s);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(pos.x - h, pos.y - h, s, s);
     }
   }
 
@@ -92,35 +89,31 @@ export class BoardRenderer {
       return;
     }
 
-    // === CASA DE PROPRIEDADE (quarteirão com 4 terrenos) ===
+    // === CASA DE PROPRIEDADE ===
     const regionColor = space.region ? PLAYER_COLORS[space.region] : null;
     const bg = regionColor ? regionColor.light : '#e0e0e0';
     const border = regionColor ? regionColor.main : '#999';
 
-    // Fundo da casa inteira
     ctx.fillStyle = bg;
     ctx.fillRect(x - h, y - h, s, s);
 
-    // Borda externa
-    ctx.strokeStyle = border;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = regionColor ? regionColor.dark : '#666';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(x - h, y - h, s, s);
 
     // Linhas divisórias dos 4 quadrantes
-    ctx.strokeStyle = this.adjustAlpha(border, 0.5);
+    ctx.strokeStyle = this.darkenColor(border, 30);
     ctx.lineWidth = 1;
-    // Horizontal
     ctx.beginPath();
     ctx.moveTo(x - h + 1, y);
     ctx.lineTo(x + h - 1, y);
     ctx.stroke();
-    // Vertical
     ctx.beginPath();
     ctx.moveTo(x, y - h + 1);
     ctx.lineTo(x, y + h - 1);
     ctx.stroke();
 
-    // Desenhar negócios nos 4 slots
+    // Negócios
     if (gameState) {
       const businesses = gameState.getBusinessesAtSpace(space.id);
       for (const { business, owner } of businesses) {
@@ -128,20 +121,87 @@ export class BoardRenderer {
       }
     }
 
-    // Pedágio / Obstrução (ícone no canto)
+    // Pedágio — cancela com cifrão
     if (space.toll) {
+      ctx.save();
+      // Overlay laranja
+      ctx.fillStyle = 'rgba(255,102,0,0.15)';
+      ctx.fillRect(x - h, y - h, s, s);
+
+      // Barra da cancela (listrada)
+      const barY = y - 4;
+      const barH = 6;
       ctx.fillStyle = '#FF6600';
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('$', x - h + 2, y - h + 1);
+      ctx.fillRect(x - h + 2, barY, s - 4, barH);
+      // Listras diagonais brancas na barra
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      for (let lx = x - h + 6; lx < x + h - 2; lx += 8) {
+        ctx.beginPath();
+        ctx.moveTo(lx, barY);
+        ctx.lineTo(lx + barH, barY + barH);
+        ctx.stroke();
+      }
+
+      // Poste esquerdo
+      ctx.fillStyle = '#CC5500';
+      ctx.fillRect(x - h + 3, barY, 4, h + 4);
+
+      // Círculo central com $
+      const cr = 12;
+      ctx.fillStyle = '#FF6600';
+      ctx.beginPath();
+      ctx.arc(x, y + 6, cr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x, y + 7);
+
+      ctx.restore();
     }
+
+    // Obstrução — cone de alerta
     if (space.obstruction) {
+      ctx.save();
+      // Overlay vermelho
+      ctx.fillStyle = 'rgba(204,0,0,0.15)';
+      ctx.fillRect(x - h, y - h, s, s);
+
+      // Triângulo de alerta
+      const ty = y - 2;
+      const tw = 22, th = 20;
       ctx.fillStyle = '#CC0000';
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'top';
-      ctx.fillText('✖', x + h - 2, y - h + 1);
+      ctx.beginPath();
+      ctx.moveTo(x, ty - th / 2);
+      ctx.lineTo(x - tw / 2, ty + th / 2);
+      ctx.lineTo(x + tw / 2, ty + th / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // ! no centro
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('!', x, ty + 2);
+
+      // Listras na base
+      ctx.fillStyle = '#CC0000';
+      ctx.fillRect(x - 14, y + 10, 28, 5);
+      ctx.fillStyle = '#FFD700';
+      for (let lx = x - 12; lx < x + 12; lx += 8) {
+        ctx.fillRect(lx, y + 10, 4, 5);
+      }
+
+      ctx.restore();
     }
 
     // Hover
@@ -149,21 +209,23 @@ export class BoardRenderer {
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
       ctx.fillRect(x - h, y - h, s, s);
     }
+
+    // Destaque pulsante na casa do jogador atual
+    if (this._currentPlayerPos === space.id) {
+      const pulse = 0.3 + 0.3 * Math.sin(Date.now() / 300);
+      ctx.strokeStyle = `rgba(255,215,0,${pulse})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - h - 1, y - h - 1, s + 2, s + 2);
+    }
   }
 
-  // Posição do centro de cada slot dentro da casa
-  //  ┌──┬──┐
-  //  │0 │1 │
-  //  ├──┼──┤
-  //  │2 │3 │
-  //  └──┴──┘
   getSlotCenter(cx, cy, size, slot) {
     const q = size / 4;
     const offsets = [
-      { x: -q, y: -q },  // 0: top-left
-      { x: +q, y: -q },  // 1: top-right
-      { x: -q, y: +q },  // 2: bottom-left
-      { x: +q, y: +q },  // 3: bottom-right
+      { x: -q, y: -q },
+      { x: +q, y: -q },
+      { x: -q, y: +q },
+      { x: +q, y: +q },
     ];
     const o = offsets[slot] || offsets[0];
     return { x: cx + o.x, y: cy + o.y };
@@ -172,72 +234,278 @@ export class BoardRenderer {
   drawBusinessInSlot(ctx, cx, cy, size, business, owner) {
     const config = BUSINESS_TYPES[business.type];
     const { x, y } = this.getSlotCenter(cx, cy, size, business.slot);
-    const qs = size / 2 - 2; // tamanho do quadrante
+    const hs = size / 4;
+    const pad = 2;
+    const sx = x - hs + pad;
+    const sy = y - hs + pad;
+    const sw = hs * 2 - pad * 2;
+    const sh = hs * 2 - pad * 2;
 
-    // Mini prédio isométrico no quadrante
-    const bw = Math.min(14, qs * 0.55);
-    const bh = Math.min(12 + business.level * 1.5, qs * 0.8);
-    const bx = x - bw / 2;
-    const by = y - bh / 2 + 2;
+    // Fundo do slot
+    ctx.fillStyle = this.darkenColor(config.color, 30);
+    ctx.fillRect(sx, sy, sw, sh);
 
-    // Frente
-    ctx.fillStyle = config.color;
-    ctx.fillRect(bx, by, bw, bh);
-
-    // Topo
-    ctx.fillStyle = this.lightenColor(config.color, 40);
+    // Desenho específico por tipo
+    ctx.save();
     ctx.beginPath();
-    ctx.moveTo(bx, by);
-    ctx.lineTo(bx + 3, by - 3);
-    ctx.lineTo(bx + bw + 3, by - 3);
-    ctx.lineTo(bx + bw, by);
-    ctx.fill();
+    ctx.rect(sx, sy, sw, sh);
+    ctx.clip();
 
-    // Lado
-    ctx.fillStyle = this.darkenColor(config.color, 40);
-    ctx.beginPath();
-    ctx.moveTo(bx + bw, by);
-    ctx.lineTo(bx + bw + 3, by - 3);
-    ctx.lineTo(bx + bw + 3, by + bh - 3);
-    ctx.lineTo(bx + bw, by + bh);
-    ctx.fill();
-
-    // Janelas
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    const wRows = Math.min(business.level, 2);
-    for (let r = 0; r < wRows; r++) {
-      for (let c = 0; c < 2; c++) {
-        ctx.fillRect(bx + 2 + c * (bw / 2 - 1), by + 2 + r * 5, 3, 2);
-      }
+    switch (business.type) {
+      case 'bar': this.drawBar(ctx, sx, sy, sw, sh, config.color); break;
+      case 'deposito': this.drawDeposito(ctx, sx, sy, sw, sh, config.color); break;
+      case 'supermercado': this.drawSupermercado(ctx, sx, sy, sw, sh, config.color); break;
+      case 'galeria': this.drawGaleria(ctx, sx, sy, sw, sh, config.color); break;
+      case 'predio_comercial': this.drawPredioComercial(ctx, sx, sy, sw, sh, config.color); break;
+      case 'shopping': this.drawShopping(ctx, sx, sy, sw, sh, config.color); break;
+      case 'super_centro': this.drawSuperCentro(ctx, sx, sy, sw, sh, config.color); break;
     }
 
-    // Borda do dono (contorno do quadrante)
+    ctx.restore();
+
+    // Borda com cor do dono
     ctx.strokeStyle = PLAYER_COLORS[owner.color].main;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(bx - 1, by - 1, bw + 2, bh + 2);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx, sy, sw, sh);
+
+    // Nível (badge)
+    if (business.level > 1) {
+      const bsz = 12;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(sx + sw - bsz, sy + sh - bsz, bsz, bsz);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${business.level}`, sx + sw - bsz / 2, sy + sh - bsz / 2);
+    }
+  }
+
+  // ── BAR: casinha simples com toldo ──
+  drawBar(ctx, sx, sy, sw, sh, color) {
+    const cx = sx + sw / 2;
+    // Parede
+    ctx.fillStyle = color;
+    ctx.fillRect(sx + 4, sy + sh * 0.35, sw - 8, sh * 0.6);
+    // Toldo listrado
+    ctx.fillStyle = this.lightenColor(color, 60);
+    ctx.fillRect(sx + 2, sy + sh * 0.28, sw - 4, sh * 0.12);
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 4; i++) {
+      if (i % 2 === 0) ctx.fillRect(sx + 2 + i * (sw - 4) / 4, sy + sh * 0.28, (sw - 4) / 4, sh * 0.12);
+    }
+    // Porta
+    ctx.fillStyle = this.darkenColor(color, 40);
+    ctx.fillRect(cx - 3, sy + sh * 0.65, 6, sh * 0.3);
+    // Telhado triangular
+    ctx.fillStyle = this.darkenColor(color, 20);
+    ctx.beginPath();
+    ctx.moveTo(sx + 2, sy + sh * 0.35);
+    ctx.lineTo(cx, sy + sh * 0.1);
+    ctx.lineTo(sx + sw - 2, sy + sh * 0.35);
+    ctx.fill();
+  }
+
+  // ── DEPÓSITO: galpão com portão ──
+  drawDeposito(ctx, sx, sy, sw, sh, color) {
+    // Galpão
+    ctx.fillStyle = color;
+    ctx.fillRect(sx + 3, sy + sh * 0.3, sw - 6, sh * 0.65);
+    // Teto curvo (arco)
+    ctx.fillStyle = this.lightenColor(color, 30);
+    ctx.beginPath();
+    ctx.moveTo(sx + 3, sy + sh * 0.35);
+    ctx.quadraticCurveTo(sx + sw / 2, sy + sh * 0.05, sx + sw - 3, sy + sh * 0.35);
+    ctx.lineTo(sx + sw - 3, sy + sh * 0.3);
+    ctx.lineTo(sx + 3, sy + sh * 0.3);
+    ctx.fill();
+    // Portão
+    ctx.fillStyle = this.darkenColor(color, 50);
+    ctx.fillRect(sx + sw * 0.2, sy + sh * 0.5, sw * 0.6, sh * 0.45);
+    // Linhas do portão
+    ctx.strokeStyle = this.darkenColor(color, 70);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx + sw * 0.5, sy + sh * 0.5);
+    ctx.lineTo(sx + sw * 0.5, sy + sh * 0.95);
+    ctx.stroke();
+  }
+
+  // ── SUPERMERCADO: fachada com vitrine ──
+  drawSupermercado(ctx, sx, sy, sw, sh, color) {
+    // Prédio
+    ctx.fillStyle = color;
+    ctx.fillRect(sx + 2, sy + sh * 0.2, sw - 4, sh * 0.75);
+    // Letreiro topo
+    ctx.fillStyle = this.lightenColor(color, 50);
+    ctx.fillRect(sx + 2, sy + sh * 0.15, sw - 4, sh * 0.12);
+    // Vitrines (2)
+    ctx.fillStyle = 'rgba(173,216,230,0.7)';
+    ctx.fillRect(sx + 5, sy + sh * 0.4, sw * 0.35, sh * 0.3);
+    ctx.fillRect(sx + sw * 0.55, sy + sh * 0.4, sw * 0.35, sh * 0.3);
+    // Porta
+    ctx.fillStyle = this.darkenColor(color, 40);
+    ctx.fillRect(sx + sw / 2 - 3, sy + sh * 0.7, 6, sh * 0.25);
+    // Carrinho (ícone simples)
+    ctx.fillStyle = '#fff';
+    ctx.font = `${Math.floor(sh * 0.2)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛒', sx + sw / 2, sy + sh * 0.15 + sh * 0.06);
+  }
+
+  // ── GALERIA: fachada elegante com colunas ──
+  drawGaleria(ctx, sx, sy, sw, sh, color) {
+    // Prédio
+    ctx.fillStyle = color;
+    ctx.fillRect(sx + 2, sy + sh * 0.25, sw - 4, sh * 0.7);
+    // Frontão triangular
+    ctx.fillStyle = this.lightenColor(color, 40);
+    ctx.beginPath();
+    ctx.moveTo(sx + 2, sy + sh * 0.25);
+    ctx.lineTo(sx + sw / 2, sy + sh * 0.05);
+    ctx.lineTo(sx + sw - 2, sy + sh * 0.25);
+    ctx.fill();
+    // Colunas (3)
+    ctx.fillStyle = this.lightenColor(color, 60);
+    for (let i = 0; i < 3; i++) {
+      const cx = sx + sw * 0.2 + i * sw * 0.3;
+      ctx.fillRect(cx - 2, sy + sh * 0.25, 4, sh * 0.65);
+    }
+    // Janelas arredondadas entre colunas
+    ctx.fillStyle = 'rgba(200,180,255,0.5)';
+    ctx.fillRect(sx + sw * 0.27, sy + sh * 0.4, sw * 0.18, sh * 0.2);
+    ctx.fillRect(sx + sw * 0.57, sy + sh * 0.4, sw * 0.18, sh * 0.2);
+  }
+
+  // ── PRÉDIO COMERCIAL: torre com andares ──
+  drawPredioComercial(ctx, sx, sy, sw, sh, color) {
+    const tw = sw * 0.65;
+    const tx = sx + (sw - tw) / 2;
+    // Torre
+    ctx.fillStyle = color;
+    ctx.fillRect(tx, sy + sh * 0.1, tw, sh * 0.85);
+    // Andares (linhas horizontais)
+    ctx.strokeStyle = this.darkenColor(color, 30);
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 5; i++) {
+      const ly = sy + sh * 0.1 + i * (sh * 0.85) / 6;
+      ctx.beginPath();
+      ctx.moveTo(tx, ly);
+      ctx.lineTo(tx + tw, ly);
+      ctx.stroke();
+    }
+    // Janelas (grade)
+    ctx.fillStyle = 'rgba(180,200,255,0.6)';
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 2; c++) {
+        ctx.fillRect(tx + 4 + c * (tw / 2 - 2), sy + sh * 0.15 + r * sh * 0.14, tw / 2 - 6, sh * 0.08);
+      }
+    }
+    // Topo (antena)
+    ctx.strokeStyle = this.lightenColor(color, 30);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx + sw / 2, sy + sh * 0.1);
+    ctx.lineTo(sx + sw / 2, sy + sh * 0.02);
+    ctx.stroke();
+    ctx.fillStyle = '#f00';
+    ctx.beginPath();
+    ctx.arc(sx + sw / 2, sy + sh * 0.02, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── SHOPPING: prédio largo com letreiro ──
+  drawShopping(ctx, sx, sy, sw, sh, color) {
+    // Prédio principal
+    ctx.fillStyle = color;
+    ctx.fillRect(sx + 2, sy + sh * 0.2, sw - 4, sh * 0.75);
+    // Letreiro grande
+    ctx.fillStyle = this.lightenColor(color, 50);
+    ctx.fillRect(sx + 2, sy + sh * 0.12, sw - 4, sh * 0.13);
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.floor(sh * 0.1)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SHOP', sx + sw / 2, sy + sh * 0.19);
+    // Vitrines (3)
+    ctx.fillStyle = 'rgba(255,200,100,0.5)';
+    for (let i = 0; i < 3; i++) {
+      const vx = sx + 4 + i * (sw - 8) / 3;
+      ctx.fillRect(vx + 1, sy + sh * 0.4, (sw - 12) / 3, sh * 0.25);
+    }
+    // Entrada grande
+    ctx.fillStyle = this.darkenColor(color, 50);
+    ctx.fillRect(sx + sw * 0.3, sy + sh * 0.7, sw * 0.4, sh * 0.25);
+    // Portas duplas
+    ctx.strokeStyle = this.darkenColor(color, 70);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx + sw * 0.5, sy + sh * 0.7);
+    ctx.lineTo(sx + sw * 0.5, sy + sh * 0.95);
+    ctx.stroke();
+  }
+
+  // ── SUPER CENTRO: arranha-céu dourado com coroa ──
+  drawSuperCentro(ctx, sx, sy, sw, sh, color) {
+    const tw = sw * 0.55;
+    const tx = sx + (sw - tw) / 2;
+    // Torre principal
+    ctx.fillStyle = color;
+    ctx.fillRect(tx, sy + sh * 0.15, tw, sh * 0.8);
+    // Gradiente dourado
+    const grad = ctx.createLinearGradient(tx, sy, tx + tw, sy + sh);
+    grad.addColorStop(0, this.lightenColor(color, 40));
+    grad.addColorStop(0.5, color);
+    grad.addColorStop(1, this.darkenColor(color, 40));
+    ctx.fillStyle = grad;
+    ctx.fillRect(tx, sy + sh * 0.15, tw, sh * 0.8);
+    // Janelas brilhantes
+    ctx.fillStyle = 'rgba(255,255,200,0.6)';
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 2; c++) {
+        ctx.fillRect(tx + 3 + c * (tw / 2 - 1), sy + sh * 0.2 + r * sh * 0.11, tw / 2 - 5, sh * 0.06);
+      }
+    }
+    // Pináculo/coroa no topo
+    ctx.fillStyle = this.lightenColor(color, 60);
+    ctx.beginPath();
+    ctx.moveTo(sx + sw / 2 - 5, sy + sh * 0.15);
+    ctx.lineTo(sx + sw / 2, sy + sh * 0.02);
+    ctx.lineTo(sx + sw / 2 + 5, sy + sh * 0.15);
+    ctx.fill();
+    // Estrela no topo
+    ctx.fillStyle = '#fff';
+    ctx.font = `${Math.floor(sh * 0.15)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('★', sx + sw / 2, sy + sh * 0.06);
+    // Base alargada
+    ctx.fillStyle = this.darkenColor(color, 20);
+    ctx.fillRect(sx + 3, sy + sh * 0.85, sw - 6, sh * 0.1);
   }
 
   drawNest(ctx, x, y, size, colors) {
-    const s = size + 6;
+    const s = size;
     const h = s / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    this.roundRect(ctx, x - h + 2, y - h + 2, s, s, 6);
+    this.roundRect(ctx, x - h + 2, y - h + 2, s, s, 4);
     ctx.fill();
 
     const grad = ctx.createRadialGradient(x - 3, y - 3, 0, x, y, h);
     grad.addColorStop(0, colors.light || '#fff');
     grad.addColorStop(1, colors.main);
     ctx.fillStyle = grad;
-    this.roundRect(ctx, x - h, y - h, s, s, 6);
+    this.roundRect(ctx, x - h, y - h, s, s, 4);
     ctx.fill();
 
     ctx.strokeStyle = colors.dark;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = '24px sans-serif';
+    ctx.font = `${Math.floor(size * 0.35)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('🏠', x, y);
@@ -251,17 +519,17 @@ export class BoardRenderer {
     ctx.fillRect(x - h, y - h, size, size);
 
     ctx.strokeStyle = isMinigame ? '#9B59B6' : '#F39C12';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.strokeRect(x - h, y - h, size, size);
 
-    ctx.font = '24px sans-serif';
+    ctx.font = `${Math.floor(size * 0.32)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(isMinigame ? '🎮' : '📊', x, y - 4);
 
     ctx.fillStyle = isMinigame ? '#5B2C6F' : '#7E5109';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillText(isMinigame ? 'MINIGAME' : 'BOLSA', x, y + 14);
+    ctx.font = 'bold 8px sans-serif';
+    ctx.fillText(isMinigame ? 'MINIGAME' : 'BOLSA', x, y + 16);
 
     if (this.hoveredSpace != null) {
       const sp = SPACES.find(s => s.id === this.hoveredSpace);
@@ -272,7 +540,160 @@ export class BoardRenderer {
     }
   }
 
-  // === PEÕES (cada cor tem seu quadrante fixo) ===
+  // === PAINÉIS DE INFO DOS JOGADORES ===
+  drawPlayerInfoPanels(ctx, gameState) {
+    if (!gameState) return;
+
+    for (const player of gameState.players) {
+      const pos = PLAYER_INFO_POSITIONS[player.color];
+      if (!pos) continue;
+
+      const colors = PLAYER_COLORS[player.color];
+      const tier = REGION_RENT_TIER[player.color] || 1;
+      const mult = RENT_TIER_MULTIPLIER[tier] || 1;
+      const pw = 156, ph = 156;
+      const px = pos.x - pw / 2;
+      const py = pos.y - ph / 2;
+      const isActive = gameState.currentPlayer.id === player.id;
+
+      ctx.save();
+
+      // Fundo
+      ctx.globalAlpha = player.bankrupt ? 0.3 : 0.92;
+      ctx.fillStyle = 'rgba(10,15,25,0.85)';
+      this.roundRect(ctx, px, py, pw, ph, 8);
+      ctx.fill();
+
+      // Borda (dourada se ativo)
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = isActive ? '#FFD700' : colors.main;
+      ctx.lineWidth = isActive ? 3 : 2;
+      this.roundRect(ctx, px, py, pw, ph, 8);
+      ctx.stroke();
+
+      // Faixa de cor no topo
+      ctx.fillStyle = colors.main;
+      ctx.globalAlpha = 0.3;
+      this.roundRect(ctx, px + 2, py + 2, pw - 4, 26, 6);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (player.bankrupt) {
+        ctx.fillStyle = '#EB5757';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('FALIDO', pos.x, pos.y);
+        ctx.restore();
+        continue;
+      }
+
+      const lx = px + 12;
+      let ly = py + 15;
+
+      // ── Nome do jogador ──
+      ctx.fillStyle = colors.light;
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${player.isBot ? '🤖 ' : ''}${player.name}`, lx, ly);
+
+      // ── Dinheiro (destaque grande) ──
+      ly += 26;
+      ctx.fillStyle = player.money < 0 ? '#EB5757' : '#4ADE80';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(`$${player.money}`, lx, ly);
+
+      // Flash de mudança de dinheiro
+      if (player._moneyFlash) {
+        const elapsed = Date.now() - player._moneyFlash.time;
+        if (elapsed < 1500) {
+          const alpha = 1 - elapsed / 1500;
+          const amt = player._moneyFlash.amount;
+          ctx.fillStyle = amt > 0 ? `rgba(74,222,128,${alpha})` : `rgba(248,113,113,${alpha})`;
+          ctx.font = 'bold 13px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(`${amt > 0 ? '+' : ''}${amt}`, px + pw - 10, ly - 6 - elapsed * 0.01);
+          ctx.textAlign = 'left';
+        } else {
+          player._moneyFlash = null;
+        }
+      }
+
+      // ── Último dado ──
+      ly += 18;
+      if (player.lastDice) {
+        const diceFaces = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        const diceStr = player.lastDice.map(d => diceFaces[d]).join(' ');
+        const total = player.lastDice.reduce((a, b) => a + b, 0);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(diceStr, lx, ly);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`= ${total}`, px + pw - 10, ly);
+        ctx.textAlign = 'left';
+      } else {
+        ctx.fillStyle = '#4a5568';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('—', lx, ly);
+      }
+
+      // ── Linha separadora ──
+      ly += 12;
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(px + pw - 12, ly);
+      ctx.stroke();
+
+      // ── Stats em grid 2×2 ──
+      ly += 14;
+      ctx.font = '13px sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      const col2 = px + pw / 2 + 4;
+
+      // Linha 1: Negócios | Cartas
+      ctx.textAlign = 'left';
+      ctx.fillText(`🏢 ${player.businesses.length}`, lx, ly);
+      ctx.fillText(`🃏 ${player.cards.length}`, col2, ly);
+
+      // Linha 2: Dados | Voltas
+      ly += 22;
+      ctx.fillText(`🎲 ${player.diceCount}`, lx, ly);
+      ctx.fillText(`🔄 ${player.laps}`, col2, ly);
+
+      // ── Barras de valorização (tier) ──
+      ly += 22;
+      const barW = (pw - 34) / 4;
+      const barH = 12;
+      const barGap = 3;
+      for (let i = 0; i < 4; i++) {
+        const bx = lx + i * (barW + barGap);
+        const active = i < tier;
+        if (active) {
+          const intensity = 0.4 + (i / 3) * 0.6;
+          ctx.fillStyle = this.adjustAlpha(colors.main, intensity);
+        } else {
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        }
+        this.roundRect(ctx, bx, ly - barH / 2, barW, barH, 3);
+        ctx.fill();
+      }
+
+      // Multiplicador
+      ctx.fillStyle = colors.light;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`x${mult.toFixed(1)}`, px + pw - 10, ly);
+
+      ctx.restore();
+    }
+  }
+
+  // === PEÕES ===
   static SLOT_MAP = { yellow: 0, red: 1, blue: 2, green: 3 };
 
   drawPawns(ctx, gameState) {
@@ -301,10 +722,11 @@ export class BoardRenderer {
 
   drawPawn(ctx, px, py, player, isActive) {
     const c = PLAYER_COLORS[player.color];
-    const sc = 0.5; // escala menor para caber no quadrante
+    const slotSize = this.cellSize / 2; // 40px por slot
+    const sc = slotSize / 20;           // escala para preencher o slot (~2.0)
 
     // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
     ctx.ellipse(px, py + 5 * sc, 7 * sc, 3 * sc, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -324,35 +746,28 @@ export class BoardRenderer {
     ctx.fill();
 
     // Brilho
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.beginPath();
-    ctx.arc(px - 1 * sc, py - 6 * sc, 2 * sc, 0, Math.PI * 2);
+    ctx.arc(px - 1.5 * sc, py - 5 * sc, 2 * sc, 0, Math.PI * 2);
     ctx.fill();
 
     // Contorno
     ctx.strokeStyle = c.dark;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(px - 5 * sc, py + 2 * sc);
     ctx.quadraticCurveTo(px - 5 * sc, py - 5 * sc, px, py - 9 * sc);
     ctx.quadraticCurveTo(px + 5 * sc, py - 5 * sc, px + 5 * sc, py + 2 * sc);
     ctx.stroke();
 
+    // Indicador de jogador ativo (borda dourada ao redor do slot)
     if (isActive) {
       ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 2]);
-      ctx.beginPath();
-      ctx.arc(px, py - 2 * sc, 8 * sc, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      const hs = slotSize / 2 - 1;
+      ctx.strokeRect(px - hs, py - hs, slotSize - 2, slotSize - 2);
       ctx.setLineDash([]);
-
-      ctx.fillStyle = '#FFD700';
-      ctx.beginPath();
-      ctx.moveTo(px - 3, py - 12 * sc);
-      ctx.lineTo(px + 3, py - 12 * sc);
-      ctx.lineTo(px, py - 8 * sc);
-      ctx.fill();
     }
   }
 
@@ -361,32 +776,32 @@ export class BoardRenderer {
     const cy = BOARD_CENTER.y;
 
     ctx.fillStyle = 'rgba(15,25,35,0.88)';
-    this.roundRect(ctx, cx - 100, cy - 55, 200, 110, 10);
+    this.roundRect(ctx, cx - 90, cy - 45, 180, 90, 8);
     ctx.fill();
 
     ctx.strokeStyle = 'rgba(242,201,76,0.5)';
     ctx.lineWidth = 2;
-    this.roundRect(ctx, cx - 100, cy - 55, 200, 110, 10);
+    this.roundRect(ctx, cx - 90, cy - 45, 180, 90, 8);
     ctx.stroke();
 
     ctx.fillStyle = '#F2C94C';
-    ctx.font = 'bold 28px Georgia, serif';
+    ctx.font = 'bold 24px Georgia, serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(242,201,76,0.3)';
     ctx.shadowBlur = 10;
-    ctx.fillText('CAPITAL', cx, cy - 20);
+    ctx.fillText('CAPITAL', cx, cy - 16);
     ctx.shadowBlur = 0;
 
     if (gameState) {
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '12px sans-serif';
+      ctx.font = '11px sans-serif';
       ctx.fillText(`Rodada ${gameState.round + 1} | ${gameState.deck.remainingCards} cartas`, cx, cy + 8);
 
       const cur = gameState.currentPlayer;
       ctx.fillStyle = PLAYER_COLORS[cur.color].main;
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText(`▶ ${cur.name}`, cx, cy + 28);
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(`▶ ${cur.name}`, cx, cy + 24);
     }
   }
 

@@ -15,8 +15,13 @@ import { StockExchange } from './ui/StockExchange.js';
 import { VictoryScreen } from './ui/VictoryScreen.js';
 import { TradeDialog } from './ui/TradeDialog.js';
 import { MinigameManager } from './minigames/MinigameManager.js';
+import { BotAI } from './core/BotAI.js';
+import { SaveManager } from './core/SaveManager.js';
+import { TutorialScreen } from './ui/TutorialScreen.js';
 import { eventBus } from './utils/EventBus.js';
 import { soundManager } from './utils/SoundManager.js';
+
+const BOT_NAMES = ['Bot Ana', 'Bot Carlos', 'Bot Luna', 'Bot Pedro'];
 
 class CapitalGame {
   constructor() {
@@ -30,6 +35,7 @@ class CapitalGame {
     this.victoryScreen = null;
     this.tradeDialog = null;
     this.minigameManager = null;
+    this.botAI = new BotAI();
     this.animationFrameId = null;
 
     this.setupScreen();
@@ -48,11 +54,21 @@ class CapitalGame {
 
         <div class="setup-form">
           <div class="player-count-selector">
-            <label>Jogadores:</label>
+            <label>Jogadores Humanos:</label>
             <div class="count-buttons">
+              <button class="count-btn" data-count="1">1</button>
               <button class="count-btn selected" data-count="2">2</button>
               <button class="count-btn" data-count="3">3</button>
               <button class="count-btn" data-count="4">4</button>
+            </div>
+          </div>
+
+          <div class="player-count-selector" id="difficulty-selector">
+            <label>Dificuldade Bot:</label>
+            <div class="count-buttons">
+              <button class="count-btn" data-diff="easy">Fácil</button>
+              <button class="count-btn selected" data-diff="normal">Normal</button>
+              <button class="count-btn" data-diff="hard">Difícil</button>
             </div>
           </div>
 
@@ -61,6 +77,7 @@ class CapitalGame {
           <button class="btn btn-primary btn-large" id="start-game">
             ▶ Iniciar Jogo
           </button>
+          ${SaveManager.hasSave() ? '<button class="btn btn-secondary btn-large" id="continue-game" style="width:100%;margin-top:6px">📂 Continuar Jogo Salvo</button>' : ''}
         </div>
       </div>
     `;
@@ -86,12 +103,25 @@ class CapitalGame {
       }
     };
 
-    app.querySelectorAll('.count-btn').forEach(btn => {
+    const playerBtns = app.querySelectorAll('.count-btn[data-count]');
+    playerBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        app.querySelectorAll('.count-btn').forEach(b => b.classList.remove('selected'));
+        playerBtns.forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         playerCount = parseInt(btn.dataset.count);
         updatePlayerInputs();
+        // Mostrar dificuldade se há bots
+        const diffSel = document.getElementById('difficulty-selector');
+        if (diffSel) diffSel.style.display = playerCount < 4 ? 'flex' : 'none';
+      });
+    });
+
+    // Dificuldade dos bots
+    app.querySelectorAll('.count-btn[data-diff]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        app.querySelectorAll('.count-btn[data-diff]').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        BotAI.difficulty = btn.dataset.diff;
       });
     });
 
@@ -104,10 +134,45 @@ class CapitalGame {
         configs.push({
           name: input.value.trim() || `Jogador ${i + 1}`,
           color: PLAYER_COLOR_ORDER[i],
+          isBot: false,
         });
       });
+      // Completar até 4 jogadores com bots
+      let botIdx = 0;
+      while (configs.length < 4) {
+        const i = configs.length;
+        configs.push({
+          name: BOT_NAMES[botIdx++],
+          color: PLAYER_COLOR_ORDER[i],
+          isBot: true,
+        });
+      }
       this.startGame(configs);
     });
+
+    // Continuar jogo salvo
+    const continueBtn = app.querySelector('#continue-game');
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        const saveData = SaveManager.load();
+        if (!saveData || !saveData.players) {
+          SaveManager.deleteSave();
+          alert('Save corrompido. Iniciando novo jogo.');
+          return;
+        }
+        // Reconstruir configs a partir do save
+        const configs = saveData.players.map(p => ({
+          name: p.name,
+          color: p.color,
+          isBot: p.isBot || false,
+        }));
+        this.startGame(configs);
+        // Restaurar estado completo
+        SaveManager.restore(this.gameState, saveData);
+        this.updateUI();
+        this.gameState.addLog('Jogo restaurado do save anterior.');
+      });
+    }
   }
 
   // === INICIAR JOGO ===
@@ -121,6 +186,9 @@ class CapitalGame {
         <main class="game-center">
           <div class="game-toolbar">
             <button class="btn btn-small sound-toggle" id="sound-toggle" title="Som">🔊 Som</button>
+            <button class="btn btn-small" id="music-toggle" title="Música">🎵 Música</button>
+            <button class="btn btn-small" id="speed-toggle" title="Velocidade dos bots">⏩ Turbo</button>
+            <button class="btn btn-small" id="help-btn" title="Ajuda">❓ Ajuda</button>
           </div>
           <div class="board-wrapper">
             <canvas id="board-canvas"></canvas>
@@ -148,6 +216,7 @@ class CapitalGame {
     this.victoryScreen = new VictoryScreen(app);
     this.tradeDialog = new TradeDialog(app);
     this.minigameManager = new MinigameManager(app);
+    this.tutorialScreen = new TutorialScreen(app);
 
     const uiAdapter = this.createUIAdapter();
     this.turnManager = new TurnManager(this.gameState, uiAdapter);
@@ -155,19 +224,42 @@ class CapitalGame {
     this.setupEventListeners();
     this.startRenderLoop();
     this.updateUI();
+    soundManager.startMusic();
     this.runTurnLoop();
   }
 
   createUIAdapter() {
     return {
       showDiceAnimation: (results) => this.diceRoller.show(results),
-      showStockResult: (result) => this.stockExchange.show(result),
-      playMinigame: (player) => {
+      showStockResult: async (result) => {
+        if (this.gameState.currentPlayer.isBot) {
+          await BotAI.delay(300, 600);
+          return;
+        }
+        return this.stockExchange.show(result);
+      },
+      playMinigame: async (player) => {
+        if (player.isBot) {
+          await BotAI.delay(500, 1200);
+          return this.botAI.simulateMinigame();
+        }
         const difficulty = player.id === this.gameState.currentPlayerIndex ? 'easy' : 'hard';
         return this.minigameManager.play(player, difficulty);
       },
-      handleBankruptcy: (player) => this.showBankruptcyDialog(player),
-      chooseAction: (player, gs) => this.showActionMenu(player, gs),
+      handleBankruptcy: async (player) => {
+        if (player.isBot) {
+          await BotAI.delay(400, 800);
+          return this.botAI.handleBankruptcy(player, this.gameState);
+        }
+        return this.showBankruptcyDialog(player);
+      },
+      chooseAction: async (player, gs) => {
+        if (player.isBot) {
+          await BotAI.delay(500, 1000);
+          return this.botAI.chooseAction(player, gs);
+        }
+        return this.showActionMenu(player, gs);
+      },
       executeTrade: (player, targetPlayer, giveIdx, receiveIdx) => {
         const giveCard = player.removeCard(giveIdx);
         const receiveCard = targetPlayer.removeCard(receiveIdx);
@@ -197,6 +289,9 @@ class CapitalGame {
             </button>
             <button class="btn action-btn" id="action-trade" ${player.cards.length === 0 ? 'disabled' : ''}>
               🤝 Trocar Cartas
+            </button>
+            <button class="btn action-btn" id="action-buy-card" ${!player.canAfford(200) || gs.deck.remainingCards === 0 ? 'disabled' : ''}>
+              🛒 Comprar Carta ($200)
             </button>
             <button class="btn action-btn action-pass" id="action-pass">
               ⏭️ Passar
@@ -233,6 +328,17 @@ class CapitalGame {
         } else {
           this.showActionMenu(player, gs).then(resolve);
         }
+      });
+
+      panel.querySelector('#action-buy-card')?.addEventListener('click', () => {
+        player.pay(200);
+        const card = gs.deck.draw();
+        player.addCard(card);
+        gs.addLog(`${player.name} comprou uma carta por $200.`);
+        soundManager.playButtonClick();
+        panel.innerHTML = '';
+        this.updateUI();
+        resolve({ type: 'pass' });
       });
 
       panel.querySelector('#action-pass')?.addEventListener('click', () => {
@@ -489,10 +595,17 @@ class CapitalGame {
   async runTurnLoop() {
     while (!this.gameState.gameOver) {
       try {
+        // Pular jogadores falidos
+        if (this.gameState.currentPlayer.bankrupt) {
+          this.gameState.nextTurn();
+          this.updateUI();
+          continue;
+        }
         // Esperar o jogador clicar "Rolar Dados"
         await this.waitForRollClick();
         await this.turnManager.executeTurn();
         this.updateUI();
+        SaveManager.save(this.gameState);
       } catch (err) {
         console.error('Erro no turno:', err);
         this.gameState.addLog(`⚠ Erro: ${err.message}`);
@@ -502,6 +615,7 @@ class CapitalGame {
       }
     }
 
+    SaveManager.deleteSave();
     if (this.gameState.winner) {
       this.victoryScreen.show(
         this.gameState.winner,
@@ -512,12 +626,24 @@ class CapitalGame {
   }
 
   // Botão interativo para iniciar o turno
-  waitForRollClick() {
-    return new Promise(resolve => {
-      const panel = document.getElementById('action-panel');
-      const player = this.gameState.currentPlayer;
-      const colors = PLAYER_COLORS[player.color];
+  async waitForRollClick() {
+    const panel = document.getElementById('action-panel');
+    const player = this.gameState.currentPlayer;
+    const colors = PLAYER_COLORS[player.color];
 
+    if (player.isBot) {
+      panel.innerHTML = `
+        <div class="action-menu roll-prompt">
+          <div class="roll-player" style="color:${colors.main}">🤖 ${player.name}</div>
+          <div class="bot-thinking">Pensando...</div>
+        </div>
+      `;
+      await BotAI.delay(600, 1200);
+      panel.innerHTML = '';
+      return;
+    }
+
+    return new Promise(resolve => {
       panel.innerHTML = `
         <div class="action-menu roll-prompt">
           <div class="roll-player" style="color:${colors.main}">${player.name}</div>
@@ -548,16 +674,82 @@ class CapitalGame {
       });
     }
 
+    // Botão de música
+    const musicBtn = document.getElementById('music-toggle');
+    if (musicBtn) {
+      musicBtn.addEventListener('click', () => {
+        if (soundManager._musicPlaying) {
+          soundManager.stopMusic();
+          musicBtn.textContent = '🎵 Música OFF';
+          musicBtn.style.color = '#94a3b8';
+        } else {
+          soundManager.startMusic();
+          musicBtn.textContent = '🎵 Música';
+          musicBtn.style.color = '';
+        }
+      });
+    }
+
+    // Botão de ajuda
+    const helpBtn = document.getElementById('help-btn');
+    if (helpBtn) {
+      helpBtn.addEventListener('click', () => this.tutorialScreen.show());
+    }
+
+    // Botão de velocidade dos bots
+    const speedBtn = document.getElementById('speed-toggle');
+    if (speedBtn) {
+      speedBtn.addEventListener('click', () => {
+        if (BotAI.speedMultiplier === 1) {
+          BotAI.speedMultiplier = 0.1;
+          speedBtn.textContent = '⏩ Turbo ON';
+          speedBtn.style.color = '#fbbf24';
+        } else {
+          BotAI.speedMultiplier = 1;
+          speedBtn.textContent = '⏩ Turbo';
+          speedBtn.style.color = '';
+        }
+      });
+    }
+
+    // Tooltip do tabuleiro
+    let tooltip = document.createElement('div');
+    tooltip.className = 'board-tooltip';
+    tooltip.style.display = 'none';
+    document.getElementById('app').appendChild(tooltip);
+
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       const space = this.boardRenderer.getSpaceAtPosition(x, y);
       this.boardRenderer.hoveredSpace = space ? space.id : null;
+
+      if (space && this.gameState) {
+        const info = this.getSpaceTooltip(space);
+        tooltip.innerHTML = info;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+      } else {
+        tooltip.style.display = 'none';
+      }
     });
 
-    // Bifurcação: mostrar botões de escolha
+    canvas.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+      this.boardRenderer.hoveredSpace = null;
+    });
+
+    // Bifurcação: mostrar botões de escolha (ou auto-choice para bots)
     eventBus.on('bifurcationChoice', ({ player, options, onChoice }) => {
+      if (player.isBot) {
+        BotAI.delay(300, 600).then(() => {
+          onChoice(this.botAI.chooseBifurcationPath(player, options, this.gameState));
+        });
+        return;
+      }
+
       const ui = document.getElementById('bifurcation-ui');
       soundManager.playBifurcation();
       ui.innerHTML = `
@@ -584,6 +776,13 @@ class CapitalGame {
     });
 
     eventBus.on('log', (message) => this.appendLog(message));
+
+    // Atualizar HUD em tempo real quando eventos acontecem
+    eventBus.on('lapCompleted', () => this.updateUI());
+    eventBus.on('businessBuilt', () => this.updateUI());
+    eventBus.on('cardPlayed', () => this.updateUI());
+    eventBus.on('bankruptcy', () => this.updateUI());
+    eventBus.on('boardUpdate', () => this.updateUI());
   }
 
   updateUI() {
@@ -595,11 +794,51 @@ class CapitalGame {
     const logEl = document.getElementById('log-container');
     if (!logEl) return;
     const entry = document.createElement('div');
-    entry.className = 'log-entry';
+    entry.className = 'log-entry ' + this.getLogClass(message);
     entry.textContent = message;
     logEl.appendChild(entry);
     logEl.scrollTop = logEl.scrollHeight;
-    while (logEl.children.length > 60) logEl.removeChild(logEl.children[1]); // keep header
+    while (logEl.children.length > 60) logEl.removeChild(logEl.children[1]);
+  }
+
+  getLogClass(msg) {
+    if (/pagou|perdeu|pedágio|imposto/i.test(msg)) return 'log-payment';
+    if (/recebeu|ganhou|\$200|comprou uma carta/i.test(msg)) return 'log-income';
+    if (/jogou|carta/i.test(msg)) return 'log-card';
+    if (/construiu/i.test(msg)) return 'log-build';
+    if (/faliu|venceu|completou volta|volta \d/i.test(msg)) return 'log-system';
+    return '';
+  }
+
+  getSpaceTooltip(space) {
+    if (space.type === 'nest') {
+      const color = PLAYER_COLORS[space.nestColor];
+      return `<b style="color:${color.main}">Ninho ${color.label}</b>`;
+    }
+    if (space.type === 'minigame') return '<b>🎮 Minigame</b><br>Jogue um minigame por dinheiro!';
+    if (space.type === 'stock_exchange') return '<b>📊 Bolsa de Valores</b><br>Ganhe ou perca até $500';
+
+    // Property
+    const region = space.region ? PLAYER_COLORS[space.region] : null;
+    let html = `<b>Casa #${space.id}</b>`;
+    if (region) html += ` <span style="color:${region.main}">(${region.label})</span>`;
+
+    // Negócios nesta casa
+    const bizs = this.gameState.getBusinessesAtSpace(space.id);
+    if (bizs.length > 0) {
+      html += '<div style="margin-top:4px">';
+      for (const { business, owner } of bizs) {
+        const ownerColor = PLAYER_COLORS[owner.color];
+        const income = this.gameState.getBusinessIncome(business, owner);
+        html += `<div><span style="color:${ownerColor.main}">${owner.name}</span>: ${business.label} Nv.${business.level} ($${income}/t)</div>`;
+      }
+      html += '</div>';
+    }
+
+    if (space.toll) html += '<div style="color:#FF6600">$ Pedágio ($100)</div>';
+    if (space.obstruction) html += '<div style="color:#CC0000">✖ Obstrução</div>';
+
+    return html;
   }
 
   startRenderLoop() {
@@ -611,4 +850,16 @@ class CapitalGame {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => { new CapitalGame(); });
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    new CapitalGame();
+  } catch (e) {
+    console.error('Erro ao iniciar o jogo:', e);
+  }
+  // Splash desaparece sozinho via CSS animation (2s delay + 0.6s fade)
+  // Cleanup do DOM após a animação terminar
+  setTimeout(() => {
+    const splash = document.getElementById('splash');
+    if (splash) splash.remove();
+  }, 3000);
+});

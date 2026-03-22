@@ -14,7 +14,7 @@ export class GameState {
   constructor(playerConfigs) {
     // playerConfigs: [{ name, color }, ...]
     this.players = playerConfigs.map((cfg, i) =>
-      new Player(i, cfg.color, cfg.name)
+      new Player(i, cfg.color, cfg.name, cfg.isBot || false)
     );
     this.currentPlayerIndex = 0;
     this.turnPhase = 'ROLL'; // ROLL | MOVE | PAY_DEBTS | SPECIAL | ACTION
@@ -91,6 +91,7 @@ export class GameState {
     player.pay(config.cost);
     const business = new Business(type, spaceId, player.id, slot);
     player.businesses.push(business);
+    player.stats.businessesBuilt++;
 
     this.addLog(`${player.name} construiu ${business.label} na casa ${spaceId}`);
     eventBus.emit('businessBuilt', { player, business });
@@ -150,13 +151,24 @@ export class GameState {
   // Avançar para próximo jogador
   nextTurn() {
     // Decrementar efeitos do jogador atual
-    this.currentPlayer.tickEffects();
+    if (!this.currentPlayer.bankrupt) {
+      this.currentPlayer.tickEffects();
+    }
 
     // Próximo jogador ativo
     let next = (this.currentPlayerIndex + 1) % this.players.length;
-    while (this.players[next].bankrupt && next !== this.currentPlayerIndex) {
+    let attempts = 0;
+    while (this.players[next].bankrupt && attempts < this.players.length) {
       next = (next + 1) % this.players.length;
+      attempts++;
     }
+
+    // Se todos estão falidos, game over
+    if (this.players[next].bankrupt) {
+      this.gameOver = true;
+      return;
+    }
+
     this.currentPlayerIndex = next;
 
     if (next === 0) this.round++;

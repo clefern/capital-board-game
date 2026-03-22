@@ -11,7 +11,7 @@ export const MIN_DICE = 1;
 // Negócios: custo e renda base
 export const BUSINESS_TYPES = {
   bar:                 { cost: 50,   baseIncome: 25,   label: 'Bar',              color: '#8B4513' },
-  deposito:            { cost: 100,  baseIncome: 50,   label: 'Depósito',         color: '#696969' },
+  deposito:            { cost: 100,  baseIncome: 50,   label: 'Armazém',          color: '#696969' },
   supermercado:        { cost: 150,  baseIncome: 75,   label: 'Supermercado',     color: '#228B22' },
   galeria:             { cost: 250,  baseIncome: 125,  label: 'Galeria',          color: '#4169E1' },
   predio_comercial:    { cost: 500,  baseIncome: 250,  label: 'Prédio Comercial', color: '#8A2BE2' },
@@ -50,6 +50,23 @@ export const MINIGAME_DURATION_MS = 30000;
 // Bolsa de Valores
 export const STOCK_MAX_WIN = 500;
 export const STOCK_MAX_LOSS = 300;
+
+// Valorização de aluguel por região (escala 1 a 4)
+// Multiplicador aplicado à renda cobrada quando alguém cai na propriedade
+export const REGION_RENT_TIER = {
+  green:  1,  // Região mais barata
+  red:    2,
+  blue:   3,
+  yellow: 4,  // Região mais cara
+};
+
+// Multiplicadores de aluguel por tier
+export const RENT_TIER_MULTIPLIER = {
+  1: 0.5,   // 50% da renda base
+  2: 1.0,   // 100% da renda base
+  3: 1.5,   // 150% da renda base
+  4: 2.0,   // 200% da renda base
+};
 
 // Cores dos jogadores
 export const PLAYER_COLORS = {

@@ -2,7 +2,7 @@
 // BonusCalculator - Cálculo de Bônus
 // ========================================
 
-import { BRAND_BONUS, REGION_BONUS_PER_BUSINESS, NEIGHBORHOOD_BONUS } from '../config/constants.js';
+import { BRAND_BONUS, REGION_BONUS_PER_BUSINESS, NEIGHBORHOOD_BONUS, REGION_RENT_TIER, RENT_TIER_MULTIPLIER } from '../config/constants.js';
 import { SPACES, getAdjacentSpaces } from '../config/board-layout.js';
 
 export class BonusCalculator {
@@ -40,6 +40,13 @@ export class BonusCalculator {
     return NEIGHBORHOOD_BONUS[count] || 0;
   }
 
+  // Multiplicador de valorização da região (tier 1-4)
+  static getRentTierMultiplier(business) {
+    const space = SPACES[business.spaceId];
+    const tier = REGION_RENT_TIER[space.region] || 1;
+    return RENT_TIER_MULTIPLIER[tier] || 1;
+  }
+
   // Multiplicador total de bônus (1 + soma de todos os bônus)
   static getTotalBonusMultiplier(business, playerBusinesses, playerColor) {
     const brand = this.getBrandBonus(business, playerBusinesses);
@@ -49,9 +56,10 @@ export class BonusCalculator {
     return 1 + brand + region + neighborhood;
   }
 
-  // Renda final de um negócio com todos os bônus
+  // Renda final de um negócio com todos os bônus e valorização da região
   static calculateIncome(business, playerBusinesses, playerColor) {
     const multiplier = this.getTotalBonusMultiplier(business, playerBusinesses, playerColor);
-    return business.getIncome(multiplier);
+    const rentTier = this.getRentTierMultiplier(business);
+    return business.getIncome(multiplier * rentTier);
   }
 }

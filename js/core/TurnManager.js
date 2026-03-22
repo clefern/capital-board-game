@@ -48,12 +48,20 @@ export class TurnManager {
 
     await this.pawnAnimator.animateMove(player, steps, async (p, space, step, totalSteps) => {
       // Volta completa
-      if (p.position === nestPos && step < totalSteps) {
+      if (p.position === nestPos) {
         p.laps++;
+        p.receive(200);
         for (const biz of p.businesses) {
           biz.levelUp();
         }
-        this.gs.addLog(`${p.name} completou volta ${p.laps}! Negócios subiram de nível.`);
+        // Carta grátis ao completar volta
+        if (this.gs.deck.remainingCards > 0) {
+          const newCard = this.gs.deck.draw();
+          p.addCard(newCard);
+          this.gs.addLog(`${p.name} completou volta ${p.laps}! Recebeu $200, 1 carta e negócios subiram de nível.`);
+        } else {
+          this.gs.addLog(`${p.name} completou volta ${p.laps}! Recebeu $200 e negócios subiram de nível.`);
+        }
         soundManager.playLevelUp();
         eventBus.emit('lapCompleted', { player: p, laps: p.laps });
       }
@@ -227,6 +235,7 @@ export class TurnManager {
     player.pay(card.cost);
     const removedCard = player.removeCard(cardIndex);
     this.gs.deck.discard(removedCard);
+    player.stats.cardsPlayed++;
 
     soundManager.playCardPlay();
     await this.applyCardEffect(player, card, target);
@@ -276,12 +285,18 @@ export class TurnManager {
 
   async executeTurn() {
     if (this.gs.gameOver) return;
+    if (this.currentPlayer.bankrupt) return;
 
     const steps = await this.phaseRoll();
     await this.phaseMove(steps);
     const alive = await this.phasePayDebts();
 
-    if (!alive || this.gs.gameOver) return;
+    if (!alive) {
+      // Jogador faliu: avançar para o próximo jogador
+      if (!this.gs.gameOver) this.gs.nextTurn();
+      return;
+    }
+    if (this.gs.gameOver) return;
 
     await this.phaseSpecial();
     if (this.gs.gameOver) return;
