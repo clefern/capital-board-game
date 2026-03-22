@@ -604,3 +604,16 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* Mobile: Modais e ações compactos */
+@media (max-height: 500px) and (orientation: landscape) {
+  .action-btn { padding: 7px 10px; font-size: 12px; }
+  .roll-btn { padding: 10px; font-size: 14px; }
+  .build-btn { font-size: 10px; }
+  .target-btn { font-size: 10px; }
+  .tutorial-modal { max-width: 90vw; max-height: 85vh; }
+  .tutorial-tabs { flex-wrap: wrap; }
+  .tutorial-tab { padding: 4px 10px; font-size: 12px; }
+  .trade-columns { flex-direction: column; gap: 6px; }
+  .card-selection { max-height: 200px; }
+}

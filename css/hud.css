@@ -124,3 +124,12 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+
+/* Mobile: HUD compacto no drawer */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hud-panel { padding: 6px; gap: 4px; overflow-y: auto; }
+  .player-panel { padding: 6px 8px; font-size: 12px; }
+  .player-header { font-size: 13px; margin-bottom: 3px; }
+  .effect-badge { font-size: 10px; padding: 1px 4px; }
+  .business-item { font-size: 11px; }
+}

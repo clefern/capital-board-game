@@ -214,6 +214,14 @@ body {
   transition: all 0.15s;
 }
 
+.count-btn.diff-btn {
+  width: auto;
+  height: 32px;
+  border-radius: 16px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
 .count-btn.selected {
   background: var(--accent-gold);
   color: #1a1a2e;
@@ -312,4 +320,175 @@ body {
   max-height: 100%;
   border-radius: 6px;
   cursor: crosshair;
+}
+
+/* =========================================
+   MOBILE: Tela "Gire o celular"
+   ========================================= */
+#rotate-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: var(--bg-primary);
+  color: var(--accent-gold);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 18px;
+  font-family: 'Inter', sans-serif;
+}
+
+.rotate-icon {
+  font-size: 64px;
+  animation: rotateHint 2s ease-in-out infinite;
+}
+
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(90deg); }
+  75% { transform: rotate(0deg); }
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotate-screen { display: flex !important; }
+  #app, #splash { display: none !important; }
+}
+
+/* =========================================
+   MOBILE: Botões flutuantes e overlay
+   ========================================= */
+.mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 110;
+  width: 36px;
+  height: 48px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(13, 27, 42, 0.9);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.mobile-toggle-left {
+  left: 0;
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.mobile-toggle-right {
+  right: 0;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 95;
+  backdrop-filter: blur(2px);
+}
+
+.drawer-overlay.active { display: block; }
+
+/* =========================================
+   MOBILE LANDSCAPE: Layout adaptativo
+   ========================================= */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Mostrar toggles mobile */
+  .mobile-toggle { display: flex; }
+
+  /* Sidebars viram drawers */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 260px;
+    transition: transform 0.3s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  }
+
+  .sidebar-left {
+    left: 0;
+    transform: translateX(-100%);
+  }
+
+  .sidebar-left.open { transform: translateX(0); }
+
+  .sidebar-right {
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  .sidebar-right.open { transform: translateX(0); }
+
+  /* Board ocupa toda a tela */
+  .game-center { width: 100vw; }
+
+  .board-wrapper { padding: 4px; }
+
+  /* Toolbar mais compacta */
+  .game-toolbar {
+    top: 4px;
+    left: 42px;
+    display: flex;
+    gap: 2px;
+  }
+
+  .game-toolbar .btn { font-size: 11px; padding: 3px 6px; }
+
+  /* Setup screen compacto */
+  .setup-screen {
+    padding: 12px;
+    min-height: auto;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .game-title { font-size: 32px; letter-spacing: 3px; }
+  .logo-icon { font-size: 28px; }
+  .setup-logo { margin-bottom: 12px; }
+  .setup-form { padding: 14px; max-width: 100%; }
+  .btn-large { padding: 8px 16px; font-size: 14px; }
+
+  /* Log mais compacto no drawer */
+  .log-container { max-height: 120px; }
+
+  /* Cards mais compactos */
+  .card { padding: 6px 8px; }
+  .card-icon { font-size: 18px; width: 24px; height: 24px; }
+  .card-name { font-size: 11px; }
+
+  /* Modais menores */
+  .modal { max-height: 90vh; padding: 14px; max-width: 90vw; }
+  .modal h2 { font-size: 15px; margin-bottom: 10px; }
+
+  /* Minigame */
+  .minigame-overlay { padding: 8px; }
+  .minigame-header { gap: 12px; padding: 6px 10px; margin-bottom: 4px; }
+
+  /* Victory stats em 2 colunas no mobile */
+  .victory-stats { grid-template-columns: repeat(2, 1fr); }
+
+  /* Dice mais compacto */
+  .dice-inner { width: 40px; height: 40px; border-radius: 8px; }
+  .dice-face { grid-template-columns: repeat(3, 8px); grid-template-rows: repeat(3, 8px); gap: 1px; padding: 3px; }
+  .dice-dot { width: 7px; height: 7px; }
+  .dice-sum { font-size: 24px; }
+
+  /* Bifurcation compacta */
+  .bifurcation-panel { padding: 8px 14px; }
+  .bif-title { font-size: 13px; }
+  .bif-btn { padding: 6px 12px; font-size: 12px; }
 }

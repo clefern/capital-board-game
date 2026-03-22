@@ -66,9 +66,9 @@ class CapitalGame {
           <div class="player-count-selector" id="difficulty-selector">
             <label>Dificuldade Bot:</label>
             <div class="count-buttons">
-              <button class="count-btn" data-diff="easy">Fácil</button>
-              <button class="count-btn selected" data-diff="normal">Normal</button>
-              <button class="count-btn" data-diff="hard">Difícil</button>
+              <button class="count-btn diff-btn" data-diff="easy">Fácil</button>
+              <button class="count-btn diff-btn selected" data-diff="normal">Normal</button>
+              <button class="count-btn diff-btn" data-diff="hard">Difícil</button>
             </div>
           </div>
 
@@ -181,6 +181,10 @@ class CapitalGame {
     // Layout: sidebar esquerda (jogadores) | centro (tabuleiro + dados) | sidebar direita (cartas + log)
     app.innerHTML = `
       <div class="game-layout">
+        <button class="mobile-toggle mobile-toggle-left" id="toggle-hud">👥</button>
+        <button class="mobile-toggle mobile-toggle-right" id="toggle-actions">🎮</button>
+        <div class="drawer-overlay" id="drawer-overlay"></div>
+
         <aside class="sidebar sidebar-left" id="hud-container"></aside>
 
         <main class="game-center">
@@ -272,6 +276,8 @@ class CapitalGame {
 
   // === MENU DE AÇÃO (sidebar direita) ===
   showActionMenu(player, gs) {
+    // Em mobile, abrir o drawer de ações automaticamente
+    this.openActionsDrawer();
     return new Promise(resolve => {
       const panel = document.getElementById('action-panel');
       const space = SPACES[player.position];
@@ -643,6 +649,7 @@ class CapitalGame {
       return;
     }
 
+    this.openActionsDrawer();
     return new Promise(resolve => {
       panel.innerHTML = `
         <div class="action-menu roll-prompt">
@@ -656,9 +663,19 @@ class CapitalGame {
       panel.querySelector('#roll-dice-btn').addEventListener('click', () => {
         soundManager.playButtonClick();
         panel.innerHTML = '';
+        this.closeDrawers?.();
         resolve();
       });
     });
+  }
+
+  openActionsDrawer() {
+    if (window.innerHeight > 500) return; // só em mobile
+    const sidebar = document.querySelector('.sidebar-right');
+    const overlay = document.getElementById('drawer-overlay');
+    document.querySelector('.sidebar-left')?.classList.remove('open');
+    sidebar?.classList.add('open');
+    overlay?.classList.add('active');
   }
 
   setupEventListeners() {
@@ -711,6 +728,34 @@ class CapitalGame {
         }
       });
     }
+
+    // Mobile drawer toggles
+    const overlay = document.getElementById('drawer-overlay');
+    const hudSidebar = document.querySelector('.sidebar-left');
+    const actionSidebar = document.querySelector('.sidebar-right');
+
+    const closeDrawers = () => {
+      hudSidebar.classList.remove('open');
+      actionSidebar.classList.remove('open');
+      overlay.classList.remove('active');
+    };
+
+    document.getElementById('toggle-hud')?.addEventListener('click', () => {
+      actionSidebar.classList.remove('open');
+      hudSidebar.classList.toggle('open');
+      overlay.classList.toggle('active', hudSidebar.classList.contains('open'));
+    });
+
+    document.getElementById('toggle-actions')?.addEventListener('click', () => {
+      hudSidebar.classList.remove('open');
+      actionSidebar.classList.toggle('open');
+      overlay.classList.toggle('active', actionSidebar.classList.contains('open'));
+    });
+
+    overlay?.addEventListener('click', closeDrawers);
+
+    // Fechar drawer ao escolher ação
+    this.closeDrawers = closeDrawers;
 
     // Tooltip do tabuleiro
     let tooltip = document.createElement('div');
