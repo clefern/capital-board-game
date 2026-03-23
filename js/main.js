@@ -957,32 +957,16 @@ class CapitalGame {
       }
     });
 
-    // Tooltip do tabuleiro
-    let tooltip = document.createElement('div');
-    tooltip.className = 'board-tooltip';
-    tooltip.style.display = 'none';
-    document.getElementById('app').appendChild(tooltip);
-
+    // Hover no canvas (apenas para highlight visual, sem tooltip)
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       const space = this.boardRenderer.getSpaceAtPosition(x, y);
       this.boardRenderer.hoveredSpace = space ? space.id : null;
-
-      if (space && this.gameState) {
-        const info = this.getSpaceTooltip(space);
-        tooltip.innerHTML = info;
-        tooltip.style.display = 'block';
-        tooltip.style.left = (e.clientX + 14) + 'px';
-        tooltip.style.top = (e.clientY - 10) + 'px';
-      } else {
-        tooltip.style.display = 'none';
-      }
     });
 
     canvas.addEventListener('mouseleave', () => {
-      tooltip.style.display = 'none';
       this.boardRenderer.hoveredSpace = null;
     });
 
@@ -1081,37 +1065,6 @@ class CapitalGame {
     if (/construiu/i.test(msg)) return 'log-build';
     if (/faliu|venceu|completou volta|volta \d/i.test(msg)) return 'log-system';
     return '';
-  }
-
-  getSpaceTooltip(space) {
-    if (space.type === 'nest') {
-      const color = PLAYER_COLORS[space.nestColor];
-      return `<b style="color:${color.main}">Ninho ${color.label}</b>`;
-    }
-    if (space.type === 'minigame') return '<b>🎮 Minigame</b><br>Jogue um minigame por dinheiro!';
-    if (space.type === 'stock_exchange') return '<b>📊 Bolsa de Valores</b><br>Ganhe ou perca até $500';
-
-    // Property
-    const region = space.region ? PLAYER_COLORS[space.region] : null;
-    let html = `<b>Casa #${space.id}</b>`;
-    if (region) html += ` <span style="color:${region.main}">(${region.label})</span>`;
-
-    // Negócios nesta casa
-    const bizs = this.gameState.getBusinessesAtSpace(space.id);
-    if (bizs.length > 0) {
-      html += '<div style="margin-top:4px">';
-      for (const { business, owner } of bizs) {
-        const ownerColor = PLAYER_COLORS[owner.color];
-        const income = this.gameState.getBusinessIncome(business, owner);
-        html += `<div><span style="color:${ownerColor.main}">${owner.name}</span>: ${business.label} Nv.${business.level} ($${income}/t)</div>`;
-      }
-      html += '</div>';
-    }
-
-    if (space.toll) html += '<div style="color:#FF6600">$ Pedágio ($100)</div>';
-    if (space.obstruction) html += '<div style="color:#CC0000">✖ Obstrução</div>';
-
-    return html;
   }
 
   startRenderLoop() {

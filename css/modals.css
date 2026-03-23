@@ -582,23 +582,6 @@
 }
 .tutorial-cards.victory .tc { border-left: 2px solid var(--accent-red); }
 
-/* === Board Tooltip === */
-.board-tooltip {
-  position: fixed;
-  z-index: 100;
-  background: rgba(13,20,30,0.95);
-  border: 1px solid rgba(242,201,76,0.3);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  pointer-events: none;
-  max-width: 220px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
-}
-
 /* === Scrollbar === */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
