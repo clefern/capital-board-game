@@ -670,6 +670,23 @@
 .tt-owner { color: var(--text-secondary); font-size: 10px; }
 .tt-special { font-size: 11px; padding: 3px 0; font-weight: 600; }
 
+/* === PWA Install === */
+.btn-install {
+  background: linear-gradient(135deg, #27AE60, #2ECC71) !important;
+  color: #fff !important; font-weight: 700;
+  border: none; animation: installPulse 2s ease-in-out infinite;
+}
+.btn-install:hover { filter: brightness(1.1); }
+@keyframes installPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(39,174,96,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(39,174,96,0); }
+}
+.ios-install-hint {
+  background: rgba(47,128,237,0.1); border: 1px solid rgba(47,128,237,0.3);
+  border-radius: 6px; padding: 10px 14px; margin-top: 12px;
+  font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.5;
+}
+
 /* === Botão Sair === */
 .btn-quit {
   margin-left: auto !important;

@@ -97,9 +97,18 @@ class MagnataGame {
           </button>
           ${SaveManager.hasSave() ? '<button class="btn btn-secondary btn-large" id="continue-game" style="width:100%;margin-top:6px">📂 Continuar Jogo Salvo</button>' : ''}
           <button class="btn btn-secondary btn-large" id="show-stats" style="width:100%;margin-top:6px">📊 Estatísticas</button>
+          <button class="btn btn-large btn-install" id="install-pwa" style="display:none;width:100%;margin-top:12px">
+            📲 Instalar App
+          </button>
+          <div id="ios-install-hint" style="display:none" class="ios-install-hint">
+            📱 Para instalar: toque em <b>Compartilhar</b> (⬆) → <b>Adicionar à Tela de Início</b>
+          </div>
         </div>
       </div>
     `;
+
+    // PWA Install button
+    this._setupInstallButton();
 
     let playerCount = 2;
     let gameMode = 'classic';
@@ -176,6 +185,7 @@ class MagnataGame {
           isBot: true,
         });
       }
+      this._tryFullscreen();
       this.startGame(configs, gameMode);
     });
 
@@ -1154,6 +1164,60 @@ class MagnataGame {
     toast.textContent = message;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+  }
+
+  _setupInstallButton() {
+    const installBtn = document.getElementById('install-pwa');
+    const iosHint = document.getElementById('ios-install-hint');
+
+    // Detectar iOS Safari (não suporta beforeinstallprompt)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (isStandalone) return; // Já está instalado como PWA
+
+    if (isIOS) {
+      // iOS: mostrar instrução manual
+      if (iosHint) iosHint.style.display = 'block';
+      return;
+    }
+
+    // Android/Desktop: botão de instalar
+    if (window._deferredInstallPrompt && installBtn) {
+      installBtn.style.display = 'block';
+    }
+
+    // Ouvir evento futuro (pode chegar depois do setup render)
+    document.addEventListener('pwa-install-available', () => {
+      if (installBtn) installBtn.style.display = 'block';
+    });
+
+    document.addEventListener('pwa-installed', () => {
+      if (installBtn) installBtn.style.display = 'none';
+      if (iosHint) iosHint.style.display = 'none';
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        const prompt = window._deferredInstallPrompt;
+        if (!prompt) return;
+        prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === 'accepted') {
+          installBtn.style.display = 'none';
+        }
+        window._deferredInstallPrompt = null;
+      });
+    }
+  }
+
+  _tryFullscreen() {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
   }
 
   _buildTooltipHTML(space) {

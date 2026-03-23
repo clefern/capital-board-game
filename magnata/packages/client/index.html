@@ -2,9 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Magnata - Jogo de tabuleiro online de estratégia financeira. Construa negócios, lucre e use cartas para vencer!">
   <meta name="theme-color" content="#0d1b2a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta property="og:title" content="Magnata - Jogo de Tabuleiro">
   <meta property="og:description" content="Construa negócios, lucre e use cartas para vencer neste jogo de tabuleiro online!">
   <meta property="og:type" content="website">
@@ -43,9 +46,28 @@
   <script src="/socket.io/socket.io.js" defer></script>
   <script type="module" src="js/main.js"></script>
   <script>
+    // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
+
+    // Capturar prompt de instalação PWA (antes que o módulo carregue)
+    window._deferredInstallPrompt = null;
+    window._pwaInstalled = window.matchMedia('(display-mode: standalone)').matches
+                         || window.navigator.standalone === true;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window._deferredInstallPrompt = e;
+      // Notificar o app que o prompt está disponível
+      document.dispatchEvent(new Event('pwa-install-available'));
+    });
+
+    window.addEventListener('appinstalled', () => {
+      window._deferredInstallPrompt = null;
+      window._pwaInstalled = true;
+      document.dispatchEvent(new Event('pwa-installed'));
+    });
   </script>
 </body>
 </html>
