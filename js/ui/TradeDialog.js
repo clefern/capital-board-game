@@ -33,7 +33,7 @@ export class TradeDialog {
 
       const renderCards = (cards, prefix, selectedSet) => cards.map((card, i) => `
         <div class="trade-card ${selectedSet.has(i) ? 'selected' : ''}"
-             data-${prefix}-index="${i}">
+             data-${prefix}-index="${i}" title="${card.description || card.name}">
           <span class="card-icon">${card.icon}</span>
           <span class="card-name">${card.name}</span>
         </div>
