@@ -317,7 +317,9 @@ class MagnataGame {
             <button class="btn btn-small" id="music-toggle" title="Música">🎵 Música</button>
             <button class="btn btn-small" id="speed-toggle" title="Velocidade dos bots">⏩ Turbo</button>
             <button class="btn btn-small" id="help-btn" title="Ajuda">❓ Ajuda</button>
+            <button class="btn btn-small btn-quit" id="quit-btn" title="Sair da partida">✕ Sair</button>
           </div>
+          <div id="board-tooltip" class="board-tooltip"></div>
           <div class="board-wrapper">
             <canvas id="board-canvas"></canvas>
           </div>
@@ -959,6 +961,29 @@ class MagnataGame {
       helpBtn.addEventListener('click', () => this.tutorialScreen.show());
     }
 
+    // Botão de sair
+    const quitBtn = document.getElementById('quit-btn');
+    if (quitBtn) {
+      quitBtn.addEventListener('click', () => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <h2>Sair da Partida</h2>
+          <p style="color:var(--text-secondary);margin:10px 0">Tem certeza? O progresso será perdido.</p>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn btn-secondary btn-small" id="quit-cancel">Cancelar</button>
+            <button class="btn btn-small" id="quit-confirm" style="background:var(--accent-red)">Sair</button>
+          </div>
+        `;
+        modal.querySelector('#quit-cancel').addEventListener('click', () => overlay.remove());
+        modal.querySelector('#quit-confirm').addEventListener('click', () => window.location.reload());
+        overlay.appendChild(modal);
+        document.getElementById('app').appendChild(overlay);
+      });
+    }
+
     // Botão de velocidade dos bots
     const speedBtn = document.getElementById('speed-toggle');
     if (speedBtn) {
@@ -1026,17 +1051,37 @@ class MagnataGame {
       }
     });
 
-    // Hover no canvas (apenas para highlight visual, sem tooltip)
+    // Hover no canvas com tooltip informativo
+    const tooltip = document.getElementById('board-tooltip');
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       const space = this.boardRenderer.getSpaceAtPosition(x, y);
       this.boardRenderer.hoveredSpace = space ? space.id : null;
+
+      if (space && tooltip && this.gameState) {
+        const html = this._buildTooltipHTML(space);
+        if (html) {
+          tooltip.innerHTML = html;
+          tooltip.style.display = 'block';
+          tooltip.style.left = (e.clientX + 15) + 'px';
+          tooltip.style.top = (e.clientY + 15) + 'px';
+          // Evitar sair da tela
+          const tr = tooltip.getBoundingClientRect();
+          if (tr.right > window.innerWidth) tooltip.style.left = (e.clientX - tr.width - 10) + 'px';
+          if (tr.bottom > window.innerHeight) tooltip.style.top = (e.clientY - tr.height - 10) + 'px';
+        } else {
+          tooltip.style.display = 'none';
+        }
+      } else if (tooltip) {
+        tooltip.style.display = 'none';
+      }
     });
 
     canvas.addEventListener('mouseleave', () => {
       this.boardRenderer.hoveredSpace = null;
+      if (tooltip) tooltip.style.display = 'none';
     });
 
     // Bifurcação: mostrar botões de escolha (ou auto-choice para bots)
@@ -1109,6 +1154,52 @@ class MagnataGame {
     toast.textContent = message;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+  }
+
+  _buildTooltipHTML(space) {
+    const gs = this.gameState;
+    const regionLabels = { blue: 'Azul', yellow: 'Amarela', red: 'Vermelha', green: 'Verde' };
+    let lines = [];
+
+    // Tipo da casa
+    if (space.nestColor) {
+      const c = PLAYER_COLORS[space.nestColor];
+      lines.push(`<div class="tt-title" style="color:${c.main}">🏠 Base ${c.label}</div>`);
+    } else if (space.type === 'minigame') {
+      lines.push(`<div class="tt-title" style="color:#d4a5e8">🎮 Casa de Minigame</div>`);
+    } else if (space.type === 'stock_exchange') {
+      lines.push(`<div class="tt-title" style="color:#fad390">📈 Bolsa de Valores</div>`);
+    } else if (space.type === 'property') {
+      const region = regionLabels[space.region] || space.region;
+      lines.push(`<div class="tt-title">Casa ${space.id} — Região ${region}</div>`);
+    }
+
+    // Negócios na casa
+    if (gs) {
+      const businesses = gs.getBusinessesAtSpace(space.id);
+      for (const { business, owner } of businesses) {
+        const income = BonusCalculator.calculateIncome(business, owner.businesses, owner.color);
+        const c = PLAYER_COLORS[owner.color];
+        lines.push(`<div class="tt-biz"><span class="tt-dot" style="background:${c.main}"></span>${business.label} Nv.${business.level} — <b>$${income}/t</b> <span class="tt-owner">(${owner.name})</span></div>`);
+      }
+    }
+
+    // Pedágio
+    if (space.toll && gs) {
+      const owner = gs.players[space.toll.ownerId];
+      const c = owner ? PLAYER_COLORS[owner.color] : null;
+      lines.push(`<div class="tt-special" style="color:${c?.main || '#FF6600'}">$ Pedágio de ${owner?.name || '?'} — $100 ao passar</div>`);
+    }
+
+    // Obstrução
+    if (space.obstruction && gs) {
+      const owner = gs.players[space.obstruction.ownerId];
+      const c = owner ? PLAYER_COLORS[owner.color] : null;
+      lines.push(`<div class="tt-special" style="color:${c?.main || '#CC0000'}">⚠ Obstrução de ${owner?.name || '?'} — Só passa com 6</div>`);
+    }
+
+    if (lines.length === 0) return null;
+    return lines.join('');
   }
 
   updateUI() {

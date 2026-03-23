@@ -7,6 +7,7 @@
 import { SPACES, BOARD_DIMENSIONS, SPACE_RENDER_W, SPACE_RENDER_H, BOARD_CENTER, PATH_SEGMENTS, PLAYER_INFO_POSITIONS, INNER_DECO_POSITIONS } from '../config/board-layout.js';
 import { PLAYER_COLORS, SPACE_TYPES, BUSINESS_TYPES, REGION_RENT_TIER, RENT_TIER_MULTIPLIER } from '../config/constants.js';
 import { BonusCalculator } from '../core/BonusCalculator.js';
+import { GameIcons } from '../ui/GameIcons.js';
 
 export class BoardRenderer {
   constructor(canvas) {
@@ -123,15 +124,17 @@ export class BoardRenderer {
       }
     }
 
-    // Pedágio — cancela com cifrão
+    // Pedágio — cancela com cor do jogador
     if (space.toll) {
+      const tollOwner = gameState?.players?.[space.toll.ownerId];
+      const tollColor = tollOwner ? PLAYER_COLORS[tollOwner.color] : { main: '#FF6600', dark: '#CC5500' };
       ctx.save();
-      ctx.fillStyle = 'rgba(255,102,0,0.15)';
+      ctx.fillStyle = this.adjustAlpha(tollColor.main, 0.12);
       ctx.fillRect(x - hw, y - hh, w, h);
 
       const barY = y - 4;
       const barHt = 6;
-      ctx.fillStyle = '#FF6600';
+      ctx.fillStyle = tollColor.main;
       ctx.fillRect(x - hw + 2, barY, w - 4, barHt);
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.5;
@@ -142,11 +145,11 @@ export class BoardRenderer {
         ctx.stroke();
       }
 
-      ctx.fillStyle = '#CC5500';
+      ctx.fillStyle = tollColor.dark || tollColor.main;
       ctx.fillRect(x - hw + 3, barY, 4, hh + 4);
 
       const cr = 12;
-      ctx.fillStyle = '#FF6600';
+      ctx.fillStyle = tollColor.main;
       ctx.beginPath();
       ctx.arc(x, y + 6, cr, 0, Math.PI * 2);
       ctx.fill();
@@ -162,15 +165,17 @@ export class BoardRenderer {
       ctx.restore();
     }
 
-    // Obstrução — cone de alerta
+    // Obstrução — cone com cor do jogador
     if (space.obstruction) {
+      const obsOwner = gameState?.players?.[space.obstruction.ownerId];
+      const obsColor = obsOwner ? PLAYER_COLORS[obsOwner.color] : { main: '#CC0000', dark: '#990000' };
       ctx.save();
-      ctx.fillStyle = 'rgba(204,0,0,0.15)';
+      ctx.fillStyle = this.adjustAlpha(obsColor.main, 0.12);
       ctx.fillRect(x - hw, y - hh, w, h);
 
       const ty = y - 2;
       const tw = 22, th = 20;
-      ctx.fillStyle = '#CC0000';
+      ctx.fillStyle = obsColor.dark || obsColor.main;
       ctx.beginPath();
       ctx.moveTo(x, ty - th / 2);
       ctx.lineTo(x - tw / 2, ty + th / 2);
@@ -187,9 +192,9 @@ export class BoardRenderer {
       ctx.textBaseline = 'middle';
       ctx.fillText('!', x, ty + 2);
 
-      ctx.fillStyle = '#CC0000';
+      ctx.fillStyle = obsColor.dark || obsColor.main;
       ctx.fillRect(x - 14, y + 10, 28, 5);
-      ctx.fillStyle = '#FFD700';
+      ctx.fillStyle = obsColor.main;
       for (let lx = x - 12; lx < x + 12; lx += 8) {
         ctx.fillRect(lx, y + 10, 4, 5);
       }
@@ -507,11 +512,7 @@ export class BoardRenderer {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = `${Math.floor(Math.min(w, h) * 0.35)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🏠', x, y);
+    GameIcons.drawNest(ctx, x, y, Math.min(w, h) * 0.7, colors.main);
   }
 
   drawSpecialSpace(ctx, x, y, w, h, type) {
@@ -525,10 +526,12 @@ export class BoardRenderer {
     ctx.lineWidth = 1;
     ctx.strokeRect(x - hw, y - hh, w, h);
 
-    ctx.font = `${Math.floor(Math.min(w, h) * 0.32)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(isMinigame ? '🎮' : '📊', x, y - 4);
+    const iconSize = Math.min(w, h) * 0.65;
+    if (isMinigame) {
+      GameIcons.drawMinigame(ctx, x, y - 4, iconSize, '#d4a5e8');
+    } else {
+      GameIcons.drawStockExchange(ctx, x, y - 4, iconSize, '#fad390');
+    }
 
     ctx.fillStyle = isMinigame ? '#5B2C6F' : '#7E5109';
     ctx.font = 'bold 8px sans-serif';
@@ -788,13 +791,17 @@ export class BoardRenderer {
     this.roundRect(ctx, cx - 90, cy - 45, 180, 90, 8);
     ctx.stroke();
 
+    // Ícones decorativos
+    GameIcons.drawCoin(ctx, cx - 70, cy - 16, 20, '#F2C94C');
+    GameIcons.drawCoin(ctx, cx + 70, cy - 16, 20, '#F2C94C');
+
     ctx.fillStyle = '#F2C94C';
     ctx.font = 'bold 24px Georgia, serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(242,201,76,0.3)';
     ctx.shadowBlur = 10;
-    ctx.fillText('CAPITAL', cx, cy - 16);
+    ctx.fillText('MAGNATA', cx, cy - 16);
     ctx.shadowBlur = 0;
 
     if (gameState) {

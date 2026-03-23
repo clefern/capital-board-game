@@ -74,10 +74,20 @@
 }
 
 .effect-badge {
-  background: rgba(255,255,255,0.08);
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 11px;
+  cursor: help;
+}
+.effect-badge.buff {
+  background: rgba(39,174,96,0.15);
+  border: 1px solid rgba(39,174,96,0.3);
+  color: #4ade80;
+}
+.effect-badge.debuff {
+  background: rgba(235,87,87,0.15);
+  border: 1px solid rgba(235,87,87,0.3);
+  color: #f87171;
 }
 
 .business-list {

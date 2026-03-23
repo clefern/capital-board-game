@@ -656,6 +656,27 @@
   font-weight: 700; font-size: 14px;
 }
 
+/* === Board Tooltip === */
+.board-tooltip {
+  display: none; position: fixed; z-index: 2000;
+  background: rgba(13,27,42,0.95); border: 1px solid rgba(242,201,76,0.4);
+  border-radius: 6px; padding: 8px 12px; pointer-events: none;
+  font-size: 12px; color: var(--text-primary); max-width: 260px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+}
+.tt-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: var(--accent-gold); }
+.tt-biz { display: flex; align-items: center; gap: 5px; padding: 2px 0; font-size: 11px; }
+.tt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tt-owner { color: var(--text-secondary); font-size: 10px; }
+.tt-special { font-size: 11px; padding: 3px 0; font-weight: 600; }
+
+/* === Botão Sair === */
+.btn-quit {
+  margin-left: auto !important;
+  opacity: 0.6; color: var(--accent-red) !important;
+}
+.btn-quit:hover { opacity: 1; background: rgba(235,87,87,0.15); }
+
 /* Mobile: Modais e ações compactos */
 @media (max-height: 500px) and (orientation: landscape) {
   .action-btn { padding: 7px 10px; font-size: 12px; }

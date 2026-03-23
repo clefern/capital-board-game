@@ -36,6 +36,10 @@ const ASSETS = [
   '/js/minigames/FindTheKey.js',
   '/js/utils/EventBus.js',
   '/js/utils/SoundManager.js',
+  '/js/ui/GameIcons.js',
+  '/js/network/SocketClient.js',
+  '/js/network/NetworkAdapter.js',
+  '/js/network/LobbyUI.js',
 ];
 
 self.addEventListener('install', event => {

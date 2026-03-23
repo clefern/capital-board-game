@@ -73,12 +73,14 @@ export class HudPanel {
         `;
         panel.appendChild(info);
 
-        // Efeitos ativos
-        const effects = this.getActiveEffects(player);
+        // Efeitos ativos (coloridos: buff=verde, debuff=vermelho)
+        const effects = this.getActiveEffects(player, gameState);
         if (effects.length > 0) {
           const effectsEl = document.createElement('div');
           effectsEl.className = 'player-effects';
-          effectsEl.innerHTML = effects.map(e => `<span class="effect-badge">${e}</span>`).join('');
+          effectsEl.innerHTML = effects.map(e =>
+            `<span class="effect-badge ${e.type}" title="${e.desc}">${e.label}</span>`
+          ).join('');
           panel.appendChild(effectsEl);
         }
 
@@ -105,15 +107,24 @@ export class HudPanel {
     }
   }
 
-  getActiveEffects(player) {
+  getActiveEffects(player, gameState) {
     const effects = [];
-    if (player.effects.lebre > 0) effects.push(`🐇 Lebre (${player.effects.lebre})`);
-    if (player.effects.tartaruga > 0) effects.push(`🐢 Tartaruga (${player.effects.tartaruga})`);
-    if (player.effects.isencaoTaxas > 0) effects.push(`📜 Isenção Taxas (${player.effects.isencaoTaxas})`);
-    if (player.effects.isencaoNegocios > 0) effects.push(`🏢 Isenção Neg. (${player.effects.isencaoNegocios})`);
-    if (player.effects.contaTrancada) effects.push('🔒 Conta Trancada');
-    if (player.effects.miraLeao) effects.push('🦁 Mira do Leão');
-    if (player.effects.cobrancaMafia) effects.push('🎩 Cobrança Máfia');
+    if (player.effects.lebre > 0)
+      effects.push({ label: `🐇 Lebre (${player.effects.lebre})`, type: 'buff', desc: 'Dados sempre caem 6' });
+    if (player.effects.tartaruga > 0)
+      effects.push({ label: `🐢 Tartaruga (${player.effects.tartaruga})`, type: 'debuff', desc: 'Dados sempre caem 1' });
+    if (player.effects.isencaoTaxas > 0)
+      effects.push({ label: `📜 Isenção Taxas (${player.effects.isencaoTaxas})`, type: 'buff', desc: 'Evita pedágio, Leão e Máfia' });
+    if (player.effects.isencaoNegocios > 0)
+      effects.push({ label: `🏢 Isenção Neg. (${player.effects.isencaoNegocios})`, type: 'buff', desc: 'Não paga aluguel de negócios' });
+    if (player.effects.contaTrancada)
+      effects.push({ label: '🔒 Conta Trancada', type: 'debuff', desc: 'Próximo recebimento vai para a Prefeitura' });
+    if (player.effects.miraLeao)
+      effects.push({ label: '🦁 Mira do Leão', type: 'debuff', desc: 'No próximo turno paga 50% do saldo' });
+    if (player.effects.cobrancaMafia) {
+      const from = gameState?.players?.[player.effects.cobrancaMafia.fromPlayerId];
+      effects.push({ label: `🎩 Máfia${from ? ` (${from.name})` : ''}`, type: 'debuff', desc: `Paga 30% do valor dos negócios${from ? ` para ${from.name}` : ''}` });
+    }
     return effects;
   }
 }
