@@ -10,6 +10,7 @@ import { BonusCalculator } from './BonusCalculator.js';
 import { PawnAnimator } from '../board/PawnAnimator.js';
 import { eventBus } from '../utils/EventBus.js';
 import { soundManager } from '../utils/SoundManager.js';
+import { RandomEventManager } from './RandomEventManager.js';
 
 export class TurnManager {
   constructor(gameState, ui) {
@@ -289,6 +290,7 @@ export class TurnManager {
 
     const steps = await this.phaseRoll();
     await this.phaseMove(steps);
+    RandomEventManager.tryTrigger(this.gs);
     const alive = await this.phasePayDebts();
 
     if (!alive) {

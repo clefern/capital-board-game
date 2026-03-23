@@ -3,6 +3,7 @@
 // ========================================
 
 import { PLAYER_COLORS } from '../config/constants.js';
+import { SaveManager } from '../core/SaveManager.js';
 
 export class VictoryScreen {
   constructor(container) {
@@ -100,6 +101,9 @@ export class VictoryScreen {
 
     overlay.appendChild(modal);
     this.container.appendChild(overlay);
+
+    // Salvar estatísticas persistentes
+    SaveManager.saveGameStats(gameState);
 
     overlay.querySelector('#new-game-btn').addEventListener('click', () => {
       overlay.remove();

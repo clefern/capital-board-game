@@ -2,7 +2,7 @@
 // GameState - Estado Central do Jogo
 // ========================================
 
-import { STARTING_CARDS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, COLOR_SLOT } from '../config/constants.js';
+import { STARTING_CARDS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, COLOR_SLOT, GAME_MODES } from '../config/constants.js';
 import { SPACES, TOTAL_SPACES, NEST_POSITIONS } from '../config/board-layout.js';
 import { Player } from './Player.js';
 import { Business } from './Business.js';
@@ -11,22 +11,27 @@ import { BonusCalculator } from './BonusCalculator.js';
 import { eventBus } from '../utils/EventBus.js';
 
 export class GameState {
-  constructor(playerConfigs) {
-    // playerConfigs: [{ name, color }, ...]
-    this.players = playerConfigs.map((cfg, i) =>
-      new Player(i, cfg.color, cfg.name, cfg.isBot || false)
-    );
+  constructor(playerConfigs, gameMode = 'classic') {
+    this.gameMode = gameMode;
+    const modeConfig = GAME_MODES[gameMode] || GAME_MODES.classic;
+    this.roundLimit = modeConfig.roundLimit || null;
+
+    this.players = playerConfigs.map((cfg, i) => {
+      const p = new Player(i, cfg.color, cfg.name, cfg.isBot || false);
+      p.money = modeConfig.money;
+      return p;
+    });
     this.currentPlayerIndex = 0;
-    this.turnPhase = 'ROLL'; // ROLL | MOVE | PAY_DEBTS | SPECIAL | ACTION
+    this.turnPhase = 'ROLL';
     this.deck = new Deck();
     this.round = 0;
     this.gameOver = false;
     this.winner = null;
     this.log = [];
 
-    // Distribuir cartas iniciais
+    const cardsPerPlayer = modeConfig.cards;
     for (const player of this.players) {
-      player.cards = this.deck.drawMultiple(STARTING_CARDS);
+      player.cards = this.deck.drawMultiple(cardsPerPlayer);
     }
   }
 
@@ -172,6 +177,19 @@ export class GameState {
     this.currentPlayerIndex = next;
 
     if (next === 0) this.round++;
+
+    // Verificar limite de rodadas (modo rápido)
+    if (this.roundLimit && this.round >= this.roundLimit) {
+      this.gameOver = true;
+      // Vencedor por patrimônio
+      const richest = this.activePlayers.reduce((best, p) =>
+        this.getPlayerPatrimony(p) > this.getPlayerPatrimony(best) ? p : best
+      );
+      this.winner = richest;
+      this.addLog(`Limite de ${this.roundLimit} rodadas atingido! ${richest.name} venceu por patrimônio.`);
+      eventBus.emit('gameOver', { winner: richest, reason: `Mais rico após ${this.roundLimit} rodadas` });
+      return;
+    }
 
     this.turnPhase = 'ROLL';
     eventBus.emit('turnChanged', { player: this.currentPlayer, round: this.round });

@@ -2,7 +2,7 @@
 // Capital - Main Application
 // ========================================
 
-import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT } from './config/constants.js';
+import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT, GAME_MODES } from './config/constants.js';
 import { SPACES, hasBifurcation } from './config/board-layout.js';
 import { GameState } from './core/GameState.js';
 import { TurnManager } from './core/TurnManager.js';
@@ -72,17 +72,37 @@ class CapitalGame {
             </div>
           </div>
 
+          <div class="player-count-selector" id="gamemode-selector">
+            <label>Modo de Jogo:</label>
+            <div class="count-buttons">
+              <button class="count-btn diff-btn selected" data-mode="classic">Clássico</button>
+              <button class="count-btn diff-btn" data-mode="rapid">Rápido</button>
+              <button class="count-btn diff-btn" data-mode="marathon">Maratona</button>
+            </div>
+          </div>
+
           <div id="player-inputs"></div>
 
           <button class="btn btn-primary btn-large" id="start-game">
             ▶ Iniciar Jogo
           </button>
           ${SaveManager.hasSave() ? '<button class="btn btn-secondary btn-large" id="continue-game" style="width:100%;margin-top:6px">📂 Continuar Jogo Salvo</button>' : ''}
+          <button class="btn btn-secondary btn-large" id="show-stats" style="width:100%;margin-top:6px">📊 Estatísticas</button>
         </div>
       </div>
     `;
 
     let playerCount = 2;
+    let gameMode = 'classic';
+
+    // Seletor de modo de jogo
+    app.querySelectorAll('.count-btn[data-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        app.querySelectorAll('.count-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        gameMode = btn.dataset.mode;
+      });
+    });
 
     const updatePlayerInputs = () => {
       const container = document.getElementById('player-inputs');
@@ -147,7 +167,7 @@ class CapitalGame {
           isBot: true,
         });
       }
-      this.startGame(configs);
+      this.startGame(configs, gameMode);
     });
 
     // Continuar jogo salvo
@@ -173,10 +193,49 @@ class CapitalGame {
         this.gameState.addLog('Jogo restaurado do save anterior.');
       });
     }
+
+    // Botão de estatísticas
+    app.querySelector('#show-stats')?.addEventListener('click', () => {
+      const stats = SaveManager.loadStats();
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const entries = Object.entries(stats.players);
+      modal.innerHTML = `
+        <h2>📊 Estatísticas</h2>
+        ${entries.length === 0 ? '<p style="color:var(--text-secondary);text-align:center">Nenhuma partida jogada ainda.</p>' : `
+          <table class="tutorial-table">
+            <tr><th>Jogador</th><th>Partidas</th><th>Vitórias</th><th>Win%</th><th>Melhor $</th></tr>
+            ${entries.sort((a,b) => b[1].wins - a[1].wins).map(([name, s]) => `
+              <tr>
+                <td style="font-weight:700">${name}</td>
+                <td>${s.gamesPlayed}</td>
+                <td>${s.wins}</td>
+                <td>${s.gamesPlayed > 0 ? Math.round(s.wins / s.gamesPlayed * 100) : 0}%</td>
+                <td style="color:var(--accent-gold)">$${s.bestPatrimony}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <p style="font-size:11px;color:var(--text-secondary)">Total de partidas: ${stats.totalGames} | Última: ${stats.lastPlayed || '—'}</p>
+        `}
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+          <button class="btn btn-secondary btn-small" id="clear-stats">Limpar</button>
+          <button class="btn btn-primary btn-small" id="close-stats">Fechar</button>
+        </div>
+      `;
+      modal.querySelector('#close-stats').addEventListener('click', () => overlay.remove());
+      modal.querySelector('#clear-stats').addEventListener('click', () => {
+        SaveManager.clearStats();
+        overlay.remove();
+      });
+      overlay.appendChild(modal);
+      app.appendChild(overlay);
+    });
   }
 
   // === INICIAR JOGO ===
-  startGame(playerConfigs) {
+  startGame(playerConfigs, gameMode = 'classic') {
     const app = document.getElementById('app');
     // Layout: sidebar esquerda (jogadores) | centro (tabuleiro + dados) | sidebar direita (cartas + log)
     app.innerHTML = `
@@ -211,7 +270,7 @@ class CapitalGame {
       </div>
     `;
 
-    this.gameState = new GameState(playerConfigs);
+    this.gameState = new GameState(playerConfigs, gameMode);
     this.boardRenderer = new BoardRenderer(document.getElementById('board-canvas'));
     this.diceRoller = new DiceRoller(document.getElementById('dice-container'));
     this.hudPanel = new HudPanel(document.getElementById('hud-container'));
@@ -867,6 +926,29 @@ class CapitalGame {
     // Fechar drawer ao escolher ação
     this.closeDrawers = closeDrawers;
 
+    // Atalhos de teclado
+    document.addEventListener('keydown', (e) => {
+      // Enter/Space = rolar dados
+      if (e.key === 'Enter' || e.key === ' ') {
+        const rollBtn = document.getElementById('roll-dice-btn');
+        if (rollBtn) { e.preventDefault(); rollBtn.click(); return; }
+      }
+      // 1-5 = ações no menu central
+      const actionMap = { '1': 'action-card', '2': 'action-build', '3': 'action-trade', '4': 'action-buy-card', '5': 'action-pass' };
+      if (actionMap[e.key]) {
+        const btn = document.getElementById(actionMap[e.key]);
+        if (btn && !btn.disabled) { btn.click(); return; }
+      }
+      // Escape = fechar modal
+      if (e.key === 'Escape') {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+          const backBtn = modal.querySelector('[id$="-back"], #trade-cancel, #auction-skip');
+          if (backBtn) backBtn.click();
+        }
+      }
+    });
+
     // Tooltip do tabuleiro
     let tooltip = document.createElement('div');
     tooltip.className = 'board-tooltip';
@@ -938,6 +1020,7 @@ class CapitalGame {
     eventBus.on('cardPlayed', () => this.updateUI());
     eventBus.on('bankruptcy', (data) => { this.updateUI(); this.showToast(`💀 ${data?.player?.name || 'Jogador'} faliu!`, 'danger'); });
     eventBus.on('boardUpdate', () => this.updateUI());
+    eventBus.on('randomEvent', ({ event }) => this.showToast(`${event.icon} ${event.name}: ${event.desc}`, 'info'));
     eventBus.on('payment', (data) => { if (data?.amount) this.showFloatingNumber(-Math.abs(data.amount)); });
     eventBus.on('income', (data) => { if (data?.amount) this.showFloatingNumber(Math.abs(data.amount)); });
   }

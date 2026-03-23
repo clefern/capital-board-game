@@ -6,6 +6,7 @@ import { CARD_TYPES } from '../config/cards-data.js';
 import { Business } from './Business.js';
 
 const SAVE_KEY = 'capital_game_save';
+const STATS_KEY = 'capital_stats';
 
 export class SaveManager {
 
@@ -123,5 +124,40 @@ export class SaveManager {
       console.error('Erro ao restaurar save:', e);
       return false;
     }
+  }
+
+  // === ESTATÍSTICAS PERSISTENTES ===
+  static loadStats() {
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      return raw ? JSON.parse(raw) : { players: {}, totalGames: 0 };
+    } catch { return { players: {}, totalGames: 0 }; }
+  }
+
+  static saveGameStats(gameState) {
+    try {
+      const stats = this.loadStats();
+      stats.totalGames++;
+      stats.lastPlayed = new Date().toISOString().split('T')[0];
+
+      for (const p of gameState.players) {
+        if (p.isBot) continue;
+        if (!stats.players[p.name]) {
+          stats.players[p.name] = { gamesPlayed: 0, wins: 0, totalEarned: 0, bestPatrimony: 0 };
+        }
+        const s = stats.players[p.name];
+        s.gamesPlayed++;
+        if (gameState.winner && gameState.winner.id === p.id) s.wins++;
+        s.totalEarned += p.stats.totalEarned || 0;
+        const pat = gameState.getPlayerPatrimony(p);
+        if (pat > s.bestPatrimony) s.bestPatrimony = pat;
+      }
+
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    } catch (e) { console.error('Erro ao salvar stats:', e); }
+  }
+
+  static clearStats() {
+    localStorage.removeItem(STATS_KEY);
   }
 }

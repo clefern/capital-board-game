@@ -95,6 +95,13 @@ export const VICTORY_CONDITIONS = {
   mega_negocio:{ minBusinessIncome: 2000, cost: 500 },
 };
 
+// Modos de jogo
+export const GAME_MODES = {
+  classic:  { label: 'Clássico', money: 500,  cards: 5, roundLimit: null, desc: 'Regras padrão' },
+  rapid:    { label: 'Rápido',   money: 1000, cards: 7, roundLimit: 15,   desc: 'Mais dinheiro, 15 rodadas' },
+  marathon: { label: 'Maratona', money: 300,  cards: 3, roundLimit: null, desc: 'Pouco dinheiro, longa duração' },
+};
+
 // Tipos de casas
 export const SPACE_TYPES = {
   NEST: 'nest',
