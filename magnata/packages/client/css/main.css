@@ -467,6 +467,9 @@ body {
 
 .drawer-overlay.active { display: block; }
 
+/* Esconder toggle toolbar no desktop */
+.toolbar-toggle { display: none; }
+
 /* =========================================
    MOBILE LANDSCAPE: Layout adaptativo
    ========================================= */
@@ -503,7 +506,7 @@ body {
   .game-center { width: 100vw; }
 
   .board-wrapper {
-    padding: 4px;
+    padding: 0;
     min-height: 0;
     overflow: hidden;
   }
@@ -513,17 +516,56 @@ body {
     height: 100%;
     max-width: 100%;
     max-height: 100%;
+    border-radius: 0;
   }
 
-  /* Toolbar mais compacta */
+  /* Toolbar: esconder por padrão, mostrar como menu flutuante */
   .game-toolbar {
+    position: fixed;
     top: 4px;
     left: 42px;
-    display: flex;
-    gap: 2px;
+    flex-direction: column;
+    gap: 3px;
+    background: rgba(13,27,42,0.95);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: none;
+    z-index: 115;
   }
 
-  .game-toolbar .btn { font-size: 11px; padding: 3px 6px; }
+  .game-toolbar.open { display: flex; }
+
+  .game-toolbar .btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  /* Botão ⚙ para abrir toolbar */
+  .toolbar-toggle {
+    display: flex;
+    position: fixed;
+    top: 4px;
+    left: 42px;
+    z-index: 110;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13,27,42,0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .toolbar-toggle:hover { background: rgba(30,41,59,0.95); }
 
   /* Setup screen compacto */
   .setup-screen {
@@ -537,7 +579,7 @@ body {
   .game-title { font-size: 32px; letter-spacing: 3px; }
   .logo-icon { font-size: 28px; }
   .setup-logo { margin-bottom: 12px; }
-  .setup-form { padding: 14px; max-width: 100%; }
+  .setup-form { padding: 14px; max-width: 360px; margin: 0 auto; }
   .btn-large { padding: 8px 16px; font-size: 14px; }
 
   /* Log mais compacto no drawer */

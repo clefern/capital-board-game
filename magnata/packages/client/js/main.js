@@ -322,7 +322,8 @@ class MagnataGame {
         <aside class="sidebar sidebar-left" id="hud-container"></aside>
 
         <main class="game-center">
-          <div class="game-toolbar">
+          <button class="toolbar-toggle" id="toolbar-toggle" title="Menu">⚙</button>
+          <div class="game-toolbar" id="game-toolbar">
             <button class="btn btn-small sound-toggle" id="sound-toggle" title="Som">🔊 Som</button>
             <button class="btn btn-small" id="music-toggle" title="Música">🎵 Música</button>
             <button class="btn btn-small" id="speed-toggle" title="Velocidade dos bots">⏩ Turbo</button>
@@ -969,6 +970,28 @@ class MagnataGame {
     const helpBtn = document.getElementById('help-btn');
     if (helpBtn) {
       helpBtn.addEventListener('click', () => this.tutorialScreen.show());
+    }
+
+    // Toggle toolbar (mobile)
+    const toolbarToggle = document.getElementById('toolbar-toggle');
+    const gameToolbar = document.getElementById('game-toolbar');
+    if (toolbarToggle && gameToolbar) {
+      toolbarToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        gameToolbar.classList.toggle('open');
+      });
+      // Fechar ao clicar fora
+      document.addEventListener('click', (e) => {
+        if (!gameToolbar.contains(e.target) && e.target !== toolbarToggle) {
+          gameToolbar.classList.remove('open');
+        }
+      });
+      // Fechar ao clicar em qualquer botão da toolbar
+      gameToolbar.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setTimeout(() => gameToolbar.classList.remove('open'), 100);
+        });
+      });
     }
 
     // Botão de sair
