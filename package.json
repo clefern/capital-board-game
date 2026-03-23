@@ -1,0 +1,13 @@
+{
+  "name": "magnata-root",
+  "version": "1.0.0",
+  "description": "Magnata - Jogo de tabuleiro de estratégia financeira online",
+  "scripts": {
+    "start": "cd magnata && npm start",
+    "install": "cd magnata && npm install",
+    "heroku-postbuild": "cd magnata && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
