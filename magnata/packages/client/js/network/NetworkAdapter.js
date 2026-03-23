@@ -4,7 +4,6 @@
 // Traduz eventos do Socket.IO para ações no client.
 
 import { eventBus } from '../utils/EventBus.js';
-import { GameState } from '../../../shared/src/GameState.js';
 
 export class NetworkAdapter {
   constructor(socketClient, game) {
