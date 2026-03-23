@@ -1,0 +1,17 @@
+{
+  "name": "magnata",
+  "version": "1.0.0",
+  "description": "Magnata - Jogo de tabuleiro de estratégia financeira online",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npm run start -w packages/server",
+    "dev": "npm run dev -w packages/server",
+    "start:local": "npm run start -w packages/client"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

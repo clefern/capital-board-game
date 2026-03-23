@@ -5,8 +5,8 @@
 import { CARD_TYPES } from '../config/cards-data.js';
 import { Business } from './Business.js';
 
-const SAVE_KEY = 'capital_game_save';
-const STATS_KEY = 'capital_stats';
+const SAVE_KEY = 'magnata_game_save';
+const STATS_KEY = 'magnata_stats';
 
 export class SaveManager {
 

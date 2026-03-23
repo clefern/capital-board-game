@@ -1,5 +1,5 @@
 // ========================================
-// Capital - Constantes do Jogo
+// Magnata - Constantes do Jogo
 // ========================================
 
 export const STARTING_MONEY = 500;

@@ -11,5 +11,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Jogo Capital rodando na porta ${PORT}`);
+    console.log(`Magnata rodando na porta ${PORT}`);
 });

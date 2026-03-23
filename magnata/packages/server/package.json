@@ -1,0 +1,15 @@
+{
+  "name": "@magnata/server",
+  "version": "1.0.0",
+  "description": "Magnata - Servidor multiplayer com Socket.IO",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.7.4"
+  }
+}

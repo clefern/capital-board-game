@@ -1,5 +1,5 @@
 // ========================================
-// Capital - Definição das 23 Cartas (x4 = 92)
+// Magnata - Definição das 23 Cartas (x4 = 92)
 // ========================================
 
 export const CARD_TYPES = {

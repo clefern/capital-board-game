@@ -1,0 +1,14 @@
+{
+  "name": "@magnata/shared",
+  "version": "1.0.0",
+  "description": "Magnata - Lógica compartilhada do jogo (regras, estado, modelos)",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants.js",
+    "./board-layout": "./src/board-layout.js",
+    "./cards-data": "./src/cards-data.js"
+  }
+}

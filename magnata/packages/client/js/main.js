@@ -1,5 +1,5 @@
 // ========================================
-// Capital - Main Application
+// Magnata - Main Application
 // ========================================
 
 import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT, GAME_MODES, GameSpeed } from './config/constants.js';
@@ -20,10 +20,13 @@ import { SaveManager } from './core/SaveManager.js';
 import { TutorialScreen } from './ui/TutorialScreen.js';
 import { eventBus } from './utils/EventBus.js';
 import { soundManager } from './utils/SoundManager.js';
+import { SocketClient } from './network/SocketClient.js';
+import { NetworkAdapter } from './network/NetworkAdapter.js';
+import { LobbyUI } from './network/LobbyUI.js';
 
 const BOT_NAMES = ['Bot Ana', 'Bot Carlos', 'Bot Luna', 'Bot Pedro'];
 
-class CapitalGame {
+class MagnataGame {
   constructor() {
     this.gameState = null;
     this.turnManager = null;
@@ -37,6 +40,9 @@ class CapitalGame {
     this.minigameManager = null;
     this.botAI = new BotAI();
     this.animationFrameId = null;
+    this.isOnline = false;
+    this.socketClient = null;
+    this.networkAdapter = null;
 
     this.setupScreen();
   }
@@ -48,8 +54,8 @@ class CapitalGame {
       <div class="setup-screen">
         <div class="setup-logo">
           <div class="logo-icon">🏢</div>
-          <h1 class="game-title">CAPITAL</h1>
-          <p class="game-subtitle">Construa negócios, lucre e use cartas para vencer!</p>
+          <h1 class="game-title">MAGNATA</h1>
+          <p class="game-subtitle">Construa seu império, negocie e domine o tabuleiro!</p>
         </div>
 
         <div class="setup-form">
@@ -84,7 +90,10 @@ class CapitalGame {
           <div id="player-inputs"></div>
 
           <button class="btn btn-primary btn-large" id="start-game">
-            ▶ Iniciar Jogo
+            ▶ Jogar Local
+          </button>
+          <button class="btn btn-primary btn-large" id="play-online" style="width:100%;margin-top:6px;background:linear-gradient(135deg,#2F80ED,#6C63FF)">
+            🌐 Jogar Online
           </button>
           ${SaveManager.hasSave() ? '<button class="btn btn-secondary btn-large" id="continue-game" style="width:100%;margin-top:6px">📂 Continuar Jogo Salvo</button>' : ''}
           <button class="btn btn-secondary btn-large" id="show-stats" style="width:100%;margin-top:6px">📊 Estatísticas</button>
@@ -194,6 +203,11 @@ class CapitalGame {
       });
     }
 
+    // Botão Jogar Online
+    app.querySelector('#play-online')?.addEventListener('click', () => {
+      this.startOnlineMode();
+    });
+
     // Botão de estatísticas
     app.querySelector('#show-stats')?.addEventListener('click', () => {
       const stats = SaveManager.loadStats();
@@ -234,7 +248,58 @@ class CapitalGame {
     });
   }
 
-  // === INICIAR JOGO ===
+  // === MODO ONLINE ===
+  async startOnlineMode() {
+    const app = document.getElementById('app');
+    try {
+      this.socketClient = new SocketClient();
+      await this.socketClient.connect();
+
+      const lobbyUI = new LobbyUI(app, this.socketClient);
+      const result = await lobbyUI.show();
+
+      if (!result) {
+        // Voltou ao menu local
+        this.setupScreen();
+        return;
+      }
+
+      // Jogo iniciou - resultado contém gameState e players
+      this.startOnlineGame(result);
+    } catch (err) {
+      console.error('Erro ao conectar:', err);
+      alert('Erro ao conectar ao servidor. Verifique se o servidor está rodando.');
+      this.setupScreen();
+    }
+  }
+
+  startOnlineGame(lobbyData) {
+    this.isOnline = true;
+    const { gameState: serializedState, players } = lobbyData;
+
+    // Criar configs dos jogadores a partir do lobby
+    const playerConfigs = players.map(p => ({
+      name: p.name,
+      color: p.color,
+      isBot: p.isBot,
+    }));
+
+    // Iniciar o jogo normalmente (UI)
+    this.startGame(playerConfigs, serializedState.gameMode || 'classic');
+
+    // Sincronizar estado do servidor
+    if (serializedState) {
+      SaveManager.restore(this.gameState, serializedState);
+      this.updateUI();
+    }
+
+    // Criar NetworkAdapter para bridge server ↔ UI
+    this.networkAdapter = new NetworkAdapter(this.socketClient, this);
+
+    // NÃO rodar runTurnLoop() - o server controla os turnos
+  }
+
+  // === INICIAR JOGO (LOCAL) ===
   startGame(playerConfigs, gameMode = 'classic') {
     const app = document.getElementById('app');
     // Layout: sidebar esquerda (jogadores) | centro (tabuleiro + dados) | sidebar direita (cartas + log)
@@ -296,7 +361,11 @@ class CapitalGame {
     this.startRenderLoop();
     this.updateUI();
     soundManager.startMusic();
-    this.runTurnLoop();
+
+    // Só rodar loop de turnos no modo local (online é server-driven)
+    if (!this.isOnline) {
+      this.runTurnLoop();
+    }
   }
 
   createUIAdapter() {
@@ -1078,7 +1147,7 @@ class CapitalGame {
 
 window.addEventListener('DOMContentLoaded', () => {
   try {
-    new CapitalGame();
+    new MagnataGame();
   } catch (e) {
     console.error('Erro ao iniciar o jogo:', e);
   }

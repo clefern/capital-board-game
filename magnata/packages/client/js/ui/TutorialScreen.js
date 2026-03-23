@@ -16,7 +16,7 @@ export class TutorialScreen {
 
     modal.innerHTML = `
       <div class="tutorial-header">
-        <h2>📖 Como Jogar Capital</h2>
+        <h2>📖 Como Jogar Magnata</h2>
         <button class="btn btn-small" id="tutorial-close">✕</button>
       </div>
 

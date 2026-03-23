@@ -1,5 +1,5 @@
 // ========================================
-// Capital - Layout do Tabuleiro
+// Magnata - Layout do Tabuleiro
 // ========================================
 // Grid 11×9. Quatro molduras 4×4 nos cantos, cada uma com 2×2 vazio.
 // Nests nos meios das bordas. Especiais extras antes de Blue e Red.

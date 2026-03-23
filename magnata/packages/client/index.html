@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Capital - Jogo de tabuleiro online. Construa negócios, lucre e use cartas para vencer!">
+  <meta name="description" content="Magnata - Jogo de tabuleiro online de estratégia financeira. Construa negócios, lucre e use cartas para vencer!">
   <meta name="theme-color" content="#0d1b2a">
-  <meta property="og:title" content="Capital - Jogo de Tabuleiro">
+  <meta property="og:title" content="Magnata - Jogo de Tabuleiro">
   <meta property="og:description" content="Construa negócios, lucre e use cartas para vencer neste jogo de tabuleiro online!">
   <meta property="og:type" content="website">
 
-  <title>Capital - Jogo de Tabuleiro</title>
+  <title>Magnata - Jogo de Tabuleiro</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d1b2a'/><text x='50' y='62' text-anchor='middle' font-size='50' font-family='serif' font-weight='bold' fill='%23F2C94C'>C</text></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d1b2a'/><text x='50' y='62' text-anchor='middle' font-size='50' font-family='serif' font-weight='bold' fill='%23F2C94C'>C</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d1b2a'/><text x='50' y='62' text-anchor='middle' font-size='50' font-family='serif' font-weight='bold' fill='%23F2C94C'>M</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d1b2a'/><text x='50' y='62' text-anchor='middle' font-size='50' font-family='serif' font-weight='bold' fill='%23F2C94C'>M</text></svg>">
 
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/board.css">
@@ -26,7 +26,7 @@
   <div id="splash" class="splash-screen">
     <div class="splash-content">
       <div class="splash-icon">🏢</div>
-      <h1 class="splash-title">CAPITAL</h1>
+      <h1 class="splash-title">MAGNATA</h1>
       <div class="splash-subtitle">Carregando...</div>
       <div class="splash-bar"><div class="splash-bar-fill"></div></div>
     </div>
@@ -40,6 +40,7 @@
 
   <div id="app"></div>
 
+  <script src="/socket.io/socket.io.js" defer></script>
   <script type="module" src="js/main.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
