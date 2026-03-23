@@ -3,6 +3,7 @@
 // ========================================
 
 import { SPACES, TOTAL_SPACES, getNextSpaces, hasBifurcation } from '../config/board-layout.js';
+import { GameSpeed } from '../config/constants.js';
 import { eventBus } from '../utils/EventBus.js';
 import { soundManager } from '../utils/SoundManager.js';
 
@@ -55,7 +56,7 @@ export class PawnAnimator {
   // Animação suave entre duas casas com bounce
   animateStep(player, fromSpace, toSpace) {
     return new Promise(resolve => {
-      const duration = 250;
+      const duration = 250 * GameSpeed.anim;
       const startTime = performance.now();
 
       player._animX = fromSpace.position.x;

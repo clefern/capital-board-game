@@ -2,7 +2,7 @@
 // MinigameManager - Gerenciador de Minigames
 // ========================================
 
-import { MINIGAME_DURATION_MS } from '../config/constants.js';
+import { MINIGAME_DURATION_MS, GameSpeed } from '../config/constants.js';
 import { MakeChange } from './MakeChange.js';
 import { CoinCatch } from './CoinCatch.js';
 import { MemoryGame } from './MemoryGame.js';
@@ -42,7 +42,7 @@ export class MinigameManager {
 
       const ctx = canvas.getContext('2d');
       let score = 0;
-      let timeLeft = MINIGAME_DURATION_MS / 1000;
+      let timeLeft = GameSpeed.minigame / 1000;
 
       const timerEl = overlay.querySelector('#mg-timer');
       const scoreEl = overlay.querySelector('#mg-score');

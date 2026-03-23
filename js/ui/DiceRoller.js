@@ -3,6 +3,7 @@
 // ========================================
 
 import { soundManager } from '../utils/SoundManager.js';
+import { GameSpeed } from '../config/constants.js';
 
 export class DiceRoller {
   constructor(container) {
@@ -54,7 +55,7 @@ export class DiceRoller {
       soundManager.playDiceRoll();
 
       let frame = 0;
-      const maxFrames = 20;
+      const maxFrames = Math.max(6, Math.floor(20 * GameSpeed.anim));
 
       const rollInterval = setInterval(() => {
         diceEls.forEach(({ inner }) => {
@@ -90,8 +91,8 @@ export class DiceRoller {
               this.el.classList.remove('active', 'fade-out');
               this.el.innerHTML = '';
               resolve(total);
-            }, 400);
-          }, 1200);
+            }, 400 * GameSpeed.anim);
+          }, 1200 * GameSpeed.anim);
         }
       }, 60);
     });

@@ -97,10 +97,13 @@ export const VICTORY_CONDITIONS = {
 
 // Modos de jogo
 export const GAME_MODES = {
-  classic:  { label: 'Clássico', money: 500,  cards: 5, roundLimit: null, desc: 'Regras padrão' },
-  rapid:    { label: 'Rápido',   money: 1000, cards: 7, roundLimit: 15,   desc: 'Mais dinheiro, 15 rodadas' },
-  marathon: { label: 'Maratona', money: 300,  cards: 3, roundLimit: null, desc: 'Pouco dinheiro, longa duração' },
+  classic:  { label: 'Clássico', money: 500,  cards: 5, roundLimit: null, animSpeed: 1,   botSpeed: 1,   minigameTime: 30000, desc: 'Regras padrão' },
+  rapid:    { label: 'Rápido',   money: 1000, cards: 7, roundLimit: 15,   animSpeed: 0.4, botSpeed: 0.25, minigameTime: 15000, desc: 'Mais dinheiro, 15 rodadas, tudo mais rápido' },
+  marathon: { label: 'Maratona', money: 300,  cards: 3, roundLimit: null, animSpeed: 1,   botSpeed: 1,   minigameTime: 30000, desc: 'Pouco dinheiro, longa duração' },
 };
+
+// Velocidade global de animação (setada ao iniciar jogo baseado no modo)
+export const GameSpeed = { anim: 1, bot: 1, minigame: 30000 };
 
 // Tipos de casas
 export const SPACE_TYPES = {

@@ -2,7 +2,7 @@
 // Capital - Main Application
 // ========================================
 
-import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT, GAME_MODES } from './config/constants.js';
+import { PLAYER_COLORS, PLAYER_COLOR_ORDER, BUSINESS_TYPES, BUSINESS_ORDER, COLOR_SLOT, GAME_MODES, GameSpeed } from './config/constants.js';
 import { SPACES, hasBifurcation } from './config/board-layout.js';
 import { GameState } from './core/GameState.js';
 import { TurnManager } from './core/TurnManager.js';
@@ -271,6 +271,14 @@ class CapitalGame {
     `;
 
     this.gameState = new GameState(playerConfigs, gameMode);
+
+    // Configurar velocidades globais baseado no modo
+    const modeConfig = GAME_MODES[gameMode] || GAME_MODES.classic;
+    GameSpeed.anim = modeConfig.animSpeed;
+    GameSpeed.bot = modeConfig.botSpeed;
+    GameSpeed.minigame = modeConfig.minigameTime;
+    BotAI.speedMultiplier = modeConfig.botSpeed;
+
     this.boardRenderer = new BoardRenderer(document.getElementById('board-canvas'));
     this.diceRoller = new DiceRoller(document.getElementById('dice-container'));
     this.hudPanel = new HudPanel(document.getElementById('hud-container'));
