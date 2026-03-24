@@ -12,6 +12,12 @@ export class CardHand {
   }
 
   update(player) {
+    const sig = player && !player.bankrupt
+      ? `${player.id}:${player.cards.map(c => c.name).join(',')}`
+      : '';
+    if (sig === this._lastSig) return;
+    this._lastSig = sig;
+
     this.el.innerHTML = '';
     if (!player || player.bankrupt) return;
 
@@ -52,6 +58,7 @@ export class CardHand {
 
   enableSelection(player, callback) {
     this.onCardSelected = callback;
+    this._lastSig = null;  // forçar re-render com novo callback
     this.el.classList.add('selectable');
     this.update(player);
   }
