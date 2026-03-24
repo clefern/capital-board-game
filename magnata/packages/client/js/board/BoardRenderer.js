@@ -609,18 +609,33 @@ export class BoardRenderer {
       const lx = px + 12;
       let ly = py + 15;
 
-      // ── Nome do jogador ──
-      ctx.fillStyle = colors.light;
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'left';
+      // ── Barra do topo: Nome (esq) + Saldo (dir) ──
+      const moneyStr = `$${player.money}`;
+      ctx.font = 'bold 12px sans-serif';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${player.isBot ? '🤖 ' : ''}${player.name}`, lx, ly);
 
-      // ── Dinheiro (destaque grande) ──
-      ly += 26;
+      // Medir saldo para saber espaço do nome
+      const moneyW = ctx.measureText(moneyStr).width;
+      const maxNameW = pw - 24 - moneyW - 8; // margem esq + dir + gap
+
+      // Nome com ellipsis
+      const rawName = `${player.isBot ? '🤖 ' : ''}${player.name}`;
+      let displayName = rawName;
+      if (ctx.measureText(rawName).width > maxNameW) {
+        while (displayName.length > 1 && ctx.measureText(displayName + '…').width > maxNameW) {
+          displayName = displayName.slice(0, -1);
+        }
+        displayName += '…';
+      }
+      ctx.fillStyle = colors.light;
+      ctx.textAlign = 'left';
+      ctx.fillText(displayName, lx, ly);
+
+      // Saldo à direita
       ctx.fillStyle = player.money < 0 ? '#EB5757' : '#4ADE80';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(`$${player.money}`, lx, ly);
+      ctx.textAlign = 'right';
+      ctx.fillText(moneyStr, px + pw - 10, ly);
+      ctx.textAlign = 'left';
 
       // Flash de mudança de dinheiro
       if (player._moneyFlash) {
@@ -629,32 +644,38 @@ export class BoardRenderer {
           const alpha = 1 - elapsed / 1500;
           const amt = player._moneyFlash.amount;
           ctx.fillStyle = amt > 0 ? `rgba(74,222,128,${alpha})` : `rgba(248,113,113,${alpha})`;
-          ctx.font = 'bold 13px sans-serif';
+          ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'right';
-          ctx.fillText(`${amt > 0 ? '+' : ''}${amt}`, px + pw - 10, ly - 6 - elapsed * 0.01);
+          ctx.fillText(`${amt > 0 ? '+' : ''}${amt}`, px + pw - 10, ly + 12 - elapsed * 0.008);
           ctx.textAlign = 'left';
         } else {
           player._moneyFlash = null;
         }
       }
 
-      // ── Último dado ──
-      ly += 18;
+      // ── Dados visuais ──
+      ly += 24;
       if (player.lastDice) {
-        const diceFaces = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-        const diceStr = player.lastDice.map(d => diceFaces[d]).join(' ');
+        const dSize = 24;
+        const dGap = 5;
         const total = player.lastDice.reduce((a, b) => a + b, 0);
+        for (let di = 0; di < player.lastDice.length; di++) {
+          const dx = lx + di * (dSize + dGap);
+          const dy = ly - dSize / 2;
+          this._drawDieFace(ctx, dx, dy, dSize, player.lastDice[di]);
+        }
+        // Total
         ctx.fillStyle = '#e2e8f0';
-        ctx.font = '16px sans-serif';
-        ctx.fillText(diceStr, lx, ly);
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = 'bold 13px sans-serif';
+        ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
         ctx.fillText(`= ${total}`, px + pw - 10, ly);
         ctx.textAlign = 'left';
       } else {
         ctx.fillStyle = '#4a5568';
         ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
         ctx.fillText('—', lx, ly);
       }
 
@@ -872,6 +893,37 @@ export class BoardRenderer {
       ctx.fillStyle = PLAYER_COLORS[cur.color].main;
       ctx.font = 'bold 12px sans-serif';
       ctx.fillText(`▶ ${cur.name}`, cx, cy + 24);
+    }
+  }
+
+  _drawDieFace(ctx, x, y, size, value) {
+    const r = 4;
+    // Fundo do dado
+    ctx.fillStyle = '#f0f0f0';
+    this.roundRect(ctx, x, y, size, size, r);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    this.roundRect(ctx, x, y, size, size, r);
+    ctx.stroke();
+
+    // Pontos
+    ctx.fillStyle = '#1a1a2e';
+    const dot = size * 0.12;
+    const cx = x + size / 2, cy = y + size / 2;
+    const off = size * 0.28;
+    const positions = {
+      1: [[cx, cy]],
+      2: [[cx - off, cy - off], [cx + off, cy + off]],
+      3: [[cx - off, cy - off], [cx, cy], [cx + off, cy + off]],
+      4: [[cx - off, cy - off], [cx + off, cy - off], [cx - off, cy + off], [cx + off, cy + off]],
+      5: [[cx - off, cy - off], [cx + off, cy - off], [cx, cy], [cx - off, cy + off], [cx + off, cy + off]],
+      6: [[cx - off, cy - off], [cx + off, cy - off], [cx - off, cy], [cx + off, cy], [cx - off, cy + off], [cx + off, cy + off]],
+    };
+    for (const [px, py] of (positions[value] || [])) {
+      ctx.beginPath();
+      ctx.arc(px, py, dot, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
