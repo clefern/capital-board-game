@@ -25,8 +25,8 @@ const CELL_W = 84;
 const CELL_H = 72;
 const BOARD_W = 11 * CELL_W;  // 924 — canvas exato para o grid 11×9
 const BOARD_H = 9 * CELL_H;   // 648
-const OFF_X = (BOARD_W - 10 * CELL_W) / 2;  // 50
-const OFF_Y = (BOARD_H - 8 * CELL_H) / 2;   // 102
+const OFF_X = (BOARD_W - 10 * CELL_W) / 2;  // 42
+const OFF_Y = (BOARD_H - 8 * CELL_H) / 2;   // 36
 
 // Grid: col 0-10, row 0-8
 function g(col, row) { return { x: OFF_X + col * CELL_W, y: OFF_Y + row * CELL_H }; }
