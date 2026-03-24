@@ -1,4 +1,4 @@
-const CACHE_NAME = 'magnata-v2';
+const CACHE_NAME = 'magnata-v3';
 const ASSETS = [
   '/',
   '/index.html',

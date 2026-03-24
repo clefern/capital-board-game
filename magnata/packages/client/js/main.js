@@ -1093,14 +1093,25 @@ class MagnataGame {
       const space = this.boardRenderer.getSpaceAtPosition(x, y);
       this.boardRenderer.hoveredSpace = space ? space.id : null;
 
-      if (space && tooltip && this.gameState) {
+      // Checar tooltip de efeito ativo
+      const effect = this.boardRenderer.getEffectAtPosition(x, y);
+
+      if (effect && tooltip) {
+        const durText = effect.duration ? ` (${effect.duration}x restantes)` : '';
+        tooltip.innerHTML = `<div class="tt-title">${effect.icon} ${effect.name}</div><div style="margin-top:4px">${effect.desc}${durText}</div>`;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 15) + 'px';
+        tooltip.style.top = (e.clientY + 15) + 'px';
+        const tr = tooltip.getBoundingClientRect();
+        if (tr.right > window.innerWidth) tooltip.style.left = (e.clientX - tr.width - 10) + 'px';
+        if (tr.bottom > window.innerHeight) tooltip.style.top = (e.clientY - tr.height - 10) + 'px';
+      } else if (space && tooltip && this.gameState) {
         const html = this._buildTooltipHTML(space);
         if (html) {
           tooltip.innerHTML = html;
           tooltip.style.display = 'block';
           tooltip.style.left = (e.clientX + 15) + 'px';
           tooltip.style.top = (e.clientY + 15) + 'px';
-          // Evitar sair da tela
           const tr = tooltip.getBoundingClientRect();
           if (tr.right > window.innerWidth) tooltip.style.left = (e.clientX - tr.width - 10) + 'px';
           if (tr.bottom > window.innerHeight) tooltip.style.top = (e.clientY - tr.height - 10) + 'px';

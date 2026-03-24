@@ -9,6 +9,16 @@ import { PLAYER_COLORS, SPACE_TYPES, BUSINESS_TYPES, REGION_RENT_TIER, RENT_TIER
 import { BonusCalculator } from '../core/BonusCalculator.js';
 import { GameIcons } from '../ui/GameIcons.js';
 
+const EFFECT_INFO = {
+  lebre:           { icon: '🐇', name: 'Operação Lebre', desc: 'Dados sempre caem 6' },
+  tartaruga:       { icon: '🐢', name: 'Operação Tartaruga', desc: 'Dados sempre caem 1' },
+  isencaoTaxas:    { icon: '📜', name: 'Isenção de Taxas', desc: 'Pula pagamentos de taxas' },
+  isencaoNegocios: { icon: '🏢', name: 'Isenção de Negócios', desc: 'Pula pagamentos a oponentes' },
+  contaTrancada:   { icon: '🔒', name: 'Conta Trancada', desc: 'Próximo rendimento vai para o banco' },
+  miraLeao:        { icon: '🦁', name: 'Na Mira do Leão', desc: 'Penalidade de 50% no próximo turno' },
+  cobrancaMafia:   { icon: '🎩', name: 'Cobrança da Máfia', desc: '30% dos negócios vai para quem aplicou' },
+};
+
 export class BoardRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -20,12 +30,14 @@ export class BoardRenderer {
     this.cellW = SPACE_RENDER_W;
     this.cellH = SPACE_RENDER_H;
     this.hoveredSpace = null;
+    this._effectHitboxes = [];
   }
 
   render(gameState) {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
     this._currentPlayerPos = gameState ? gameState.currentPlayer.position : -1;
+    this._effectHitboxes = [];
     this.drawBoardBackground(ctx);
     this.drawRegionFills(ctx);
     this.drawDecoInnerCells(ctx);
@@ -695,6 +707,53 @@ export class BoardRenderer {
       ctx.textAlign = 'right';
       ctx.fillText(`x${mult.toFixed(1)}`, px + pw - 10, ly);
 
+      // ── Ícones de efeitos ativos ──
+      if (player.effects) {
+        const activeEffects = [];
+        for (const [key, info] of Object.entries(EFFECT_INFO)) {
+          const val = player.effects[key];
+          if (val && val !== false) {
+            activeEffects.push({ ...info, key, duration: typeof val === 'number' ? val : null });
+          }
+        }
+        if (activeEffects.length > 0) {
+          ly += 16;
+          const iconSize = 18;
+          const gap = 4;
+          let ix = lx;
+          ctx.font = `${iconSize - 2}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          for (const eff of activeEffects) {
+            // Fundo do ícone
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            this.roundRect(ctx, ix, ly - iconSize / 2, iconSize, iconSize, 3);
+            ctx.fill();
+            // Ícone
+            ctx.fillStyle = '#fff';
+            ctx.fillText(eff.icon, ix + iconSize / 2, ly + 1);
+            // Badge de duração
+            if (eff.duration !== null && eff.duration > 0) {
+              ctx.fillStyle = 'rgba(0,0,0,0.7)';
+              ctx.beginPath();
+              ctx.arc(ix + iconSize - 2, ly - iconSize / 2 + 3, 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#FFD700';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText(`${eff.duration}`, ix + iconSize - 2, ly - iconSize / 2 + 3.5);
+              ctx.font = `${iconSize - 2}px sans-serif`;
+            }
+            // Guardar hitbox para tooltip
+            this._effectHitboxes.push({
+              x: ix, y: ly - iconSize / 2, w: iconSize, h: iconSize,
+              icon: eff.icon, name: eff.name, desc: eff.desc,
+              duration: eff.duration,
+            });
+            ix += iconSize + gap;
+          }
+        }
+      }
+
       ctx.restore();
     }
   }
@@ -823,6 +882,13 @@ export class BoardRenderer {
       if (Math.abs(mx - space.position.x) < tolX && Math.abs(my - space.position.y) < tolY) {
         return space;
       }
+    }
+    return null;
+  }
+
+  getEffectAtPosition(mx, my) {
+    for (const hb of this._effectHitboxes) {
+      if (mx >= hb.x && mx <= hb.x + hb.w && my >= hb.y && my <= hb.y + hb.h) return hb;
     }
     return null;
   }
