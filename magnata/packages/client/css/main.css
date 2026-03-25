@@ -279,6 +279,7 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .sidebar-left { border-right: 1px solid rgba(255,255,255,0.06); }

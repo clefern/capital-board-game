@@ -774,7 +774,7 @@ export class BoardRenderer {
           activeEffects.push({ ...EFFECT_INFO.obstrucao, key: 'obstrucao', duration: obsCount });
         }
         if (activeEffects.length > 0) {
-          ly += 16;
+          ly += 24;
           const iconSize = 18;
           const gap = 4;
           let ix = lx;
