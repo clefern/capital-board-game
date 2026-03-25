@@ -6,6 +6,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 6px;
+  min-height: 0;
 }
 
 .card-hand { padding: 0; }
