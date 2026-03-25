@@ -8,6 +8,8 @@
   gap: 6px;
   padding: 8px;
   height: 100%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .player-panel {

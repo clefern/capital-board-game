@@ -17,6 +17,8 @@ const EFFECT_INFO = {
   contaTrancada:   { icon: '🔒', name: 'Conta Trancada', desc: 'Próximo rendimento vai para o banco' },
   miraLeao:        { icon: '🦁', name: 'Na Mira do Leão', desc: 'Penalidade de 50% no próximo turno' },
   cobrancaMafia:   { icon: '🎩', name: 'Cobrança da Máfia', desc: '30% dos negócios vai para quem aplicou' },
+  pedagio:         { icon: '🚦', name: 'Pedágio', desc: 'Jogadores pagam $100 ao passar' },
+  obstrucao:       { icon: '🚧', name: 'Obstrução', desc: 'Só quem tirar 6 consegue passar' },
 };
 
 export class BoardRenderer {
@@ -244,6 +246,7 @@ export class BoardRenderer {
 
   drawBusinessInSlot(ctx, cx, cy, cellW, cellH, business, owner) {
     const config = BUSINESS_TYPES[business.type];
+    const playerColor = PLAYER_COLORS[owner.color].main;
     const { x, y } = this.getSlotCenter(cx, cy, cellW, cellH, business.slot);
     const hsw = cellW / 4;
     const hsh = cellH / 4;
@@ -253,30 +256,30 @@ export class BoardRenderer {
     const sw = hsw * 2 - pad * 2;
     const sh = hsh * 2 - pad * 2;
 
-    // Fundo do slot
-    ctx.fillStyle = this.darkenColor(config.color, 30);
+    // Fundo do slot — cor do jogador (escurecida)
+    ctx.fillStyle = this.darkenColor(playerColor, 30);
     ctx.fillRect(sx, sy, sw, sh);
 
-    // Desenho específico por tipo
+    // Desenho específico por tipo — cor do jogador
     ctx.save();
     ctx.beginPath();
     ctx.rect(sx, sy, sw, sh);
     ctx.clip();
 
     switch (business.type) {
-      case 'bar': this.drawBar(ctx, sx, sy, sw, sh, config.color); break;
-      case 'deposito': this.drawDeposito(ctx, sx, sy, sw, sh, config.color); break;
-      case 'supermercado': this.drawSupermercado(ctx, sx, sy, sw, sh, config.color); break;
-      case 'galeria': this.drawGaleria(ctx, sx, sy, sw, sh, config.color); break;
-      case 'predio_comercial': this.drawPredioComercial(ctx, sx, sy, sw, sh, config.color); break;
-      case 'shopping': this.drawShopping(ctx, sx, sy, sw, sh, config.color); break;
-      case 'super_centro': this.drawSuperCentro(ctx, sx, sy, sw, sh, config.color); break;
+      case 'bar': this.drawBar(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'deposito': this.drawDeposito(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'supermercado': this.drawSupermercado(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'galeria': this.drawGaleria(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'predio_comercial': this.drawPredioComercial(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'shopping': this.drawShopping(ctx, sx, sy, sw, sh, playerColor); break;
+      case 'super_centro': this.drawSuperCentro(ctx, sx, sy, sw, sh, playerColor); break;
     }
 
     ctx.restore();
 
     // Borda com cor do dono
-    ctx.strokeStyle = PLAYER_COLORS[owner.color].main;
+    ctx.strokeStyle = playerColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(sx, sy, sw, sh);
 
@@ -289,17 +292,22 @@ export class BoardRenderer {
       ctx.strokeRect(sx - 1, sy - 1, sw + 2, sh + 2);
     }
 
-    // Nível (badge)
-    if (business.level > 1) {
-      const bsz = 12;
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(sx + sw - bsz, sy + sh - bsz, bsz, bsz);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${business.level}`, sx + sw - bsz / 2, sy + sh - bsz / 2);
-    }
+    // Nível (badge) — sempre visível
+    const bsz = 13;
+    const bx = sx + sw - bsz;
+    const by = sy + sh - bsz;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    this.roundRect(ctx, bx, by, bsz, bsz, 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 0.5;
+    this.roundRect(ctx, bx, by, bsz, bsz, 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${business.level}`, bx + bsz / 2, by + bsz / 2);
   }
 
   // ── BAR: casinha simples com toldo ──
@@ -611,14 +619,15 @@ export class BoardRenderer {
 
       // ── Barra do topo: Nome (esq) + Saldo (dir) ──
       const moneyStr = `$${player.money}`;
-      ctx.font = 'bold 12px sans-serif';
       ctx.textBaseline = 'middle';
 
-      // Medir saldo para saber espaço do nome
+      // Medir saldo com fonte maior
+      ctx.font = 'bold 15px sans-serif';
       const moneyW = ctx.measureText(moneyStr).width;
       const maxNameW = pw - 24 - moneyW - 8; // margem esq + dir + gap
 
-      // Nome com ellipsis
+      // Nome com ellipsis (fonte menor que saldo)
+      ctx.font = 'bold 12px sans-serif';
       const rawName = `${player.isBot ? '🤖 ' : ''}${player.name}`;
       let displayName = rawName;
       if (ctx.measureText(rawName).width > maxNameW) {
@@ -631,7 +640,8 @@ export class BoardRenderer {
       ctx.textAlign = 'left';
       ctx.fillText(displayName, lx, ly);
 
-      // Saldo à direita
+      // Saldo à direita (fonte maior)
+      ctx.font = 'bold 15px sans-serif';
       ctx.fillStyle = player.money < 0 ? '#EB5757' : '#4ADE80';
       ctx.textAlign = 'right';
       ctx.fillText(moneyStr, px + pw - 10, ly);
@@ -654,10 +664,10 @@ export class BoardRenderer {
       }
 
       // ── Dados visuais ──
-      ly += 24;
+      ly += 28;
       if (player.lastDice) {
         const dSize = 24;
-        const dGap = 5;
+        const dGap = 7;
         const total = player.lastDice.reduce((a, b) => a + b, 0);
         for (let di = 0; di < player.lastDice.length; di++) {
           const dx = lx + di * (dSize + dGap);
@@ -693,16 +703,26 @@ export class BoardRenderer {
       ctx.font = '13px sans-serif';
       ctx.fillStyle = '#cbd5e1';
       const col2 = px + pw / 2 + 4;
+      const statW = pw / 2 - 16;
+      const statH = 16;
 
       // Linha 1: Negócios | Cartas
       ctx.textAlign = 'left';
       ctx.fillText(`🏢 ${player.businesses.length}`, lx, ly);
       ctx.fillText(`🃏 ${player.cards.length}`, col2, ly);
+      this._effectHitboxes.push(
+        { x: lx, y: ly - statH / 2, w: statW, h: statH, icon: '🏢', name: 'Negócios', desc: 'Quantidade de negócios que você possui' },
+        { x: col2, y: ly - statH / 2, w: statW, h: statH, icon: '🃏', name: 'Cartas', desc: 'Cartas na mão' },
+      );
 
       // Linha 2: Dados | Voltas
       ly += 22;
       ctx.fillText(`🎲 ${player.diceCount}`, lx, ly);
       ctx.fillText(`🔄 ${player.laps}`, col2, ly);
+      this._effectHitboxes.push(
+        { x: lx, y: ly - statH / 2, w: statW, h: statH, icon: '🎲', name: 'Dados', desc: 'Quantidade de dados que você joga' },
+        { x: col2, y: ly - statH / 2, w: statW, h: statH, icon: '🔄', name: 'Voltas', desc: 'Voltas completadas no tabuleiro' },
+      );
 
       // ── Barras de valorização (tier) ──
       ly += 22;
@@ -729,13 +749,29 @@ export class BoardRenderer {
       ctx.fillText(`x${mult.toFixed(1)}`, px + pw - 10, ly);
 
       // ── Ícones de efeitos ativos ──
-      if (player.effects) {
+      {
         const activeEffects = [];
-        for (const [key, info] of Object.entries(EFFECT_INFO)) {
-          const val = player.effects[key];
-          if (val && val !== false) {
-            activeEffects.push({ ...info, key, duration: typeof val === 'number' ? val : null });
+        // Efeitos temporários do jogador
+        if (player.effects) {
+          for (const [key, info] of Object.entries(EFFECT_INFO)) {
+            if (key === 'pedagio' || key === 'obstrucao') continue; // tratados abaixo
+            const val = player.effects[key];
+            if (val && val !== false) {
+              activeEffects.push({ ...info, key, duration: typeof val === 'number' ? val : null });
+            }
           }
+        }
+        // Pedágios e obstruções no tabuleiro (efeitos permanentes)
+        let tollCount = 0, obsCount = 0;
+        for (const space of SPACES) {
+          if (space.toll && space.toll.ownerId === player.id) tollCount++;
+          if (space.obstruction && space.obstruction.ownerId === player.id) obsCount++;
+        }
+        if (tollCount > 0) {
+          activeEffects.push({ ...EFFECT_INFO.pedagio, key: 'pedagio', duration: tollCount });
+        }
+        if (obsCount > 0) {
+          activeEffects.push({ ...EFFECT_INFO.obstrucao, key: 'obstrucao', duration: obsCount });
         }
         if (activeEffects.length > 0) {
           ly += 16;
